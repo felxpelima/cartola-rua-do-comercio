@@ -1,0 +1,17 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Estado do bolão guardado em uma única linha (id = 1).
+// O campo `data` é um JSON com { participants: [...], config: {...} }.
+model Estado {
+  id        Int      @id
+  data      Json
+  updatedAt DateTime @updatedAt
+}

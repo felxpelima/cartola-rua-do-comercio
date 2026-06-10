@@ -1,0 +1,19 @@
+# Dependências
+node_modules/
+
+# Variáveis de ambiente (segredos) — o .env.example pode ser versionado
+.env
+.env.*
+!.env.example
+
+# Vercel
+.vercel
+
+# Prisma (client gerado, se usar output customizado)
+/generated
+
+# Logs e sistema
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
