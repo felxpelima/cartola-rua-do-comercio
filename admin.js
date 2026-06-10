@@ -7,6 +7,7 @@ const setToken = (t) => localStorage.setItem(TOKEN_KEY, t);
 const clearToken = () => localStorage.removeItem(TOKEN_KEY);
 const uid = () => "p" + Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-4);
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+let pendingDeleteId = null;
 
 function hashHue(str) {
   let h = 0;
@@ -117,7 +118,7 @@ function renderParticipants() {
         <span class="pr-avatar" style="background:${avatarBg(p.nome)}">${esc(monogram(p.nome))}</span>
         <input class="nome-in" type="text" placeholder="Nome" value="${esc(p.nome)}" maxlength="80" />
         <input class="pts-in" type="number" step="0.01" placeholder="Pontos" value="${p.pontos}" />
-        <button class="icon-btn" title="Remover">🗑️</button>
+        <button class="icon-btn" type="button" title="Remover" aria-label="Remover participante">🗑️</button>
       </div>`
     )
     .join("");
@@ -135,10 +136,7 @@ function renderParticipants() {
       const p = state.participants.find((x) => x.id === id);
       if (p) p.pontos = e.target.value === "" ? 0 : parseFloat(e.target.value) || 0;
     });
-    row.querySelector(".icon-btn").addEventListener("click", () => {
-      state.participants = state.participants.filter((x) => x.id !== id);
-      renderParticipants();
-    });
+    row.querySelector(".icon-btn").addEventListener("click", () => openDeleteConfirm(id));
   });
 }
 
@@ -147,6 +145,37 @@ function addParticipant() {
   renderParticipants();
   const inputs = $("participants").querySelectorAll(".nome-in");
   if (inputs.length) inputs[inputs.length - 1].focus();
+}
+
+function participantName(id) {
+  const p = state.participants.find((x) => x.id === id);
+  return ((p && p.nome) || "").trim() || "este participante";
+}
+
+function openDeleteConfirm(id) {
+  pendingDeleteId = id;
+  $("confirmName").textContent = participantName(id);
+  $("confirmDelete").classList.add("show");
+  $("confirmDelete").setAttribute("aria-hidden", "false");
+  $("confirmCancelBtn").focus();
+}
+
+function closeDeleteConfirm() {
+  pendingDeleteId = null;
+  $("confirmDelete").classList.remove("show");
+  $("confirmDelete").setAttribute("aria-hidden", "true");
+}
+
+function confirmDeleteParticipant() {
+  if (!pendingDeleteId) {
+    closeDeleteConfirm();
+    return;
+  }
+  const removedName = participantName(pendingDeleteId);
+  state.participants = state.participants.filter((x) => x.id !== pendingDeleteId);
+  closeDeleteConfirm();
+  renderParticipants();
+  toast(removedName + " removido. Clique em salvar para publicar.", "ok");
 }
 
 /* ---------- SALVAR ---------- */
@@ -199,6 +228,12 @@ $("pwd").addEventListener("keydown", (e) => e.key === "Enter" && login());
 $("logoutBtn").addEventListener("click", logout);
 $("addBtn").addEventListener("click", addParticipant);
 $("saveBtn").addEventListener("click", save);
+$("confirmCancelBtn").addEventListener("click", closeDeleteConfirm);
+$("confirmDeleteBtn").addEventListener("click", confirmDeleteParticipant);
+$("confirmDelete").addEventListener("click", (e) => e.target.id === "confirmDelete" && closeDeleteConfirm());
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && pendingDeleteId) closeDeleteConfirm();
+});
 ["pct1", "pct2", "pct3"].forEach((id) => $(id).addEventListener("input", updatePctNote));
 
 if (getToken()) {
