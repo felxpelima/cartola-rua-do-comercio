@@ -66,7 +66,7 @@ test("fixture server serves public/admin shells and data API", async () => {
   ]);
 
   assert.equal(home.status, 200);
-  assert.match(await home.text(), /Liga Rua do Comércio/);
+  assert.match(await home.text(), /Liga Rua do Comercio/);
 
   assert.equal(admin.status, 200);
   assert.match(await admin.text(), /Painel do Organizador/);

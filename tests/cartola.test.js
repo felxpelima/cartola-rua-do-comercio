@@ -1,6 +1,15 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { calculateCartolaPartialPoints, calculateCartolaPartialSnapshot, cartolaUrl, extractCartolaRoundPoints, normalizeCartolaTeam } from "../lib/cartola.js";
+import {
+  buildRoundScoreRawPayload,
+  calculateCartolaPartialPoints,
+  calculateCartolaPartialSnapshot,
+  cartolaUrl,
+  extractCartolaRoundPoints,
+  normalizeCartolaTeam,
+  normalizeLineupSnapshot,
+  normalizeStoredLineupSnapshot,
+} from "../lib/cartola.js";
 
 test("cartolaUrl applies Copa prefix only for Copa competition", () => {
   assert.equal(cartolaUrl("/mercado/status", "copa"), "https://api.cartola.globo.com/copa/mercado/status");
@@ -210,4 +219,80 @@ test("calculateCartolaPartialPoints does not use luxury reserve while starter po
   };
 
   assert.equal(calculateCartolaPartialPoints(teamPayload, scoredPayload, matchesPayload), 0);
+});
+
+test("normalizeLineupSnapshot exposes starters, reserves, captain and partial status", () => {
+  const teamPayload = {
+    capitao_id: 20,
+    reserva_luxo_id: 90,
+    clubes: {
+      1: { abreviacao: "BRA", nome_fantasia: "Brasil", escudos: { "45x45": "https://example.com/bra.png" } },
+      2: { abreviacao: "ARG" },
+    },
+    atletas: [
+      { atleta_id: 10, apelido: "Goleiro", posicao_id: 1, clube_id: 1 },
+      { atleta_id: 20, apelido: "Capitao", posicao_id: 4, clube_id: 1 },
+      { atleta_id: 30, apelido: "Zagueiro", posicao_id: 3, clube_id: 2 },
+      { atleta_id: 40, apelido: "Atacante", posicao_id: 5, clube_id: 2, pontos_num: 5, foto: "https://s.sde.globo.com/media/person_role/2026/05/19/photo_FORMATO_abc.png" },
+      { atleta_id: 50, apelido: "Tecnico", posicao_id: 6, clube_id: 1 },
+    ],
+    reservas: [{ atleta_id: 90, apelido: "Reserva Luxo", posicao_id: 5, clube_id: 1 }],
+  };
+  const scoredPayload = {
+    atletas: {
+      10: { pontuacao: 4, entrou_em_campo: true },
+      20: { pontuacao: 8, entrou_em_campo: true },
+      40: { pontuacao: 5, entrou_em_campo: true },
+    },
+  };
+  const matchesPayload = {
+    partidas: [{ clube_casa_id: 2, clube_visitante_id: 3, periodo_tr: "POS_JOGO" }],
+  };
+
+  const lineup = normalizeLineupSnapshot(teamPayload, scoredPayload, matchesPayload);
+  assert.equal(lineup.formation, "1-1-1");
+  assert.equal(lineup.captainName, "Capitao");
+  assert.equal(lineup.luxuryReserveName, "Reserva Luxo");
+  assert.equal(lineup.starters.length, 5);
+  assert.equal(lineup.reserves[0].isLuxuryReserve, true);
+  assert.equal(lineup.starters.find((athlete) => athlete.name === "Capitao").isCaptain, true);
+  assert.equal(lineup.starters.find((athlete) => athlete.name === "Zagueiro").status, "empty");
+  assert.equal(lineup.starters.find((athlete) => athlete.name === "Atacante").status, "scored");
+  assert.equal(lineup.starters.find((athlete) => athlete.name === "Atacante").photoUrl, "https://s.sde.globo.com/media/person_role/2026/05/19/photo_220x220_abc.png");
+  assert.equal(lineup.playedCount, 3);
+  assert.equal(lineup.lineupCount, 4);
+});
+
+test("stored lineup snapshot keeps individual scored athlete points", () => {
+  const teamPayload = {
+    capitao_id: 20,
+    atletas: [
+      { atleta_id: 10, apelido: "Goleiro", posicao_id: 1, clube_id: 1, pontos_num: 0 },
+      { atleta_id: 20, apelido: "Capitao", posicao_id: 4, clube_id: 1, pontos_num: 0 },
+      { atleta_id: 30, apelido: "Sem Pontos", posicao_id: 5, clube_id: 2, pontos_num: 0 },
+    ],
+    reservas: [{ atleta_id: 90, apelido: "Reserva", posicao_id: 5, clube_id: 1, pontos_num: 0 }],
+  };
+  const scoredPayload = {
+    rodada: 1,
+    atletas: {
+      10: { pontuacao: 4.4, entrou_em_campo: true },
+      20: { pontuacao: 8.1, entrou_em_campo: true },
+      999: { pontuacao: 20, entrou_em_campo: true },
+    },
+  };
+  const matchesPayload = {
+    rodada: 1,
+    partidas: [{ clube_casa_id: 2, clube_visitante_id: 3, periodo_tr: "POS_JOGO" }],
+  };
+
+  const raw = buildRoundScoreRawPayload(teamPayload, scoredPayload, matchesPayload);
+  assert.deepEqual(Object.keys(raw.__lineupScoredAthletes.atletas).sort(), ["10", "20"]);
+  assert.equal(raw.__lineupScoredAthletes.atletas["999"], undefined);
+
+  const lineup = normalizeStoredLineupSnapshot(raw);
+  assert.equal(lineup.starters.find((athlete) => athlete.name === "Goleiro").points, 4.4);
+  assert.equal(lineup.starters.find((athlete) => athlete.name === "Capitao").points, 8.1);
+  assert.equal(lineup.starters.find((athlete) => athlete.name === "Sem Pontos").points, null);
+  assert.equal(lineup.starters.find((athlete) => athlete.name === "Sem Pontos").status, "empty");
 });

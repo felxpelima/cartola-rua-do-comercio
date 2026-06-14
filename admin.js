@@ -150,6 +150,7 @@ function fillForm() {
   $("ligaSlug").value = config.ligaSlug ?? "cartola-rua-do-comercio";
   $("competition").value = config.competition ?? "copa";
   $("temporada").value = config.temporada ?? 2026;
+  $("mural").value = config.mural ?? "";
   $("adminSubtitle").textContent = config.titulo || "Liga Rua do Comércio";
 
   renderAutomationSummary();
@@ -540,6 +541,7 @@ async function save() {
       ligaSlug: $("ligaSlug").value.trim() || "cartola-rua-do-comercio",
       competition: competitionValue(),
       temporada: Number($("temporada").value) || 2026,
+      mural: $("mural").value.trim(),
     },
   };
 

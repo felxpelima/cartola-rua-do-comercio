@@ -3,7 +3,7 @@ import { readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 const roots = ["api", "lib", "scripts", "tests"];
-const rootFiles = ["admin.js", "landing.js", "participant.js"];
+const rootFiles = ["admin.js", "back-to-top.js", "landing.js", "participant.js"];
 const files = [];
 
 function walk(dir) {

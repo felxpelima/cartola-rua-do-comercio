@@ -18,6 +18,7 @@ let state = {
     ligaSlug: "cartola-rua-do-comercio",
     competition: "copa",
     temporada: 2026,
+    mural: "Hoje tem disputa boa: confere teu capitao, manda o print e prepara a resenha.",
   },
   currentRound: { id: 1, nome: "Rodada 1", status: "fechado" },
   lastSync: {
@@ -105,6 +106,53 @@ let state = {
   ],
 };
 
+function previewAthlete(name, positionId, positionAbbr, points, status = "scored", extras = {}) {
+  return {
+    id: Math.floor(Math.random() * 1000000),
+    name,
+    positionId,
+    positionAbbr,
+    position: positionAbbr,
+    club: { abbr: extras.club || "RUA" },
+    points,
+    status,
+    played: status === "scored",
+    isCaptain: Boolean(extras.captain),
+    isLuxuryReserve: Boolean(extras.luxury),
+    kind: extras.kind || "starter",
+  };
+}
+
+function previewLineup(seed = 0) {
+  const starters = [
+    previewAthlete("Muralha FC", 1, "GOL", 6.4),
+    previewAthlete("Lateral da Feira", 2, "LAT", 4.2),
+    previewAthlete("Zagueiro Central", 3, "ZAG", 7.1),
+    previewAthlete("Xerife da Rua", 3, "ZAG", null, "waiting"),
+    previewAthlete("Avenida Esquerda", 2, "LAT", 3.8),
+    previewAthlete("Maestro", 4, "MEI", 9.3, "scored", { captain: seed % 2 === 0 }),
+    previewAthlete("Camisa Dez", 4, "MEI", 5.5),
+    previewAthlete("Volante", 4, "MEI", null, "waiting"),
+    previewAthlete("Artilheiro", 5, "ATA", 12.6, "scored", { captain: seed % 2 === 1 }),
+    previewAthlete("Ponta Rapido", 5, "ATA", 2.1),
+    previewAthlete("Centroavante", 5, "ATA", null, "empty"),
+    previewAthlete("Professor", 6, "TEC", 0),
+  ];
+  const reserves = [
+    previewAthlete("Reserva Quente", 5, "ATA", 8.2, "scored", { kind: "reserve", luxury: true }),
+    previewAthlete("Banco Seguro", 4, "MEI", null, "waiting", { kind: "reserve" }),
+  ];
+  return {
+    formation: "4-3-3",
+    starters,
+    reserves,
+    captainName: starters.find((athlete) => athlete.isCaptain)?.name || "",
+    luxuryReserveName: "Reserva Quente",
+    playedCount: starters.filter((athlete) => athlete.positionId !== 6 && athlete.status === "scored").length,
+    lineupCount: starters.filter((athlete) => athlete.positionId !== 6).length,
+  };
+}
+
 function refreshDerived() {
   const ranked = [...state.participants].sort((a, b) => Number(b.pontos || 0) - Number(a.pontos || 0));
   state.participants = ranked.map((p, index) => ({
@@ -112,11 +160,28 @@ function refreshDerived() {
     rank: index + 1,
     totalPoints: Number(p.totalPoints ?? p.pontos) || 0,
     pontos: Number(p.pontos ?? p.totalPoints) || 0,
+    lineup: p.lineup || (p.cartolaTimeId ? previewLineup(index) : null),
+  }));
+  state.participants = state.participants.map((p, index, list) => ({
+    ...p,
+    rivals: {
+      ahead: list[index - 1] ? { ...list[index - 1], diff: Math.abs(Number(p.pontos || 0) - Number(list[index - 1].pontos || 0)) } : null,
+      behind: list[index + 1] ? { ...list[index + 1], diff: Math.abs(Number(p.pontos || 0) - Number(list[index + 1].pontos || 0)) } : null,
+    },
   }));
   state.roundRanking = state.participants
     .filter((p) => p.currentRoundPoints != null)
     .sort((a, b) => Number(b.currentRoundPoints || 0) - Number(a.currentRoundPoints || 0))
     .map((p, index) => ({ ...p, pontos: p.currentRoundPoints, roundRank: index + 1 }));
+  const leader = state.participants[0];
+  const roundLeader = state.roundRanking[0];
+  state.mural = state.config.mural || "";
+  state.highlights = [
+    leader && { code: "leader", tone: "gold", label: "Lider geral", title: leader.cartolaTeamName || leader.nome, body: `Esta no topo com ${Number(leader.pontos || 0).toFixed(2)} pts.`, participantId: leader.id, value: `#${leader.rank}` },
+    roundLeader && { code: "round-hero", tone: "green", label: "Mito da rodada", title: roundLeader.cartolaTeamName || roundLeader.nome, body: `Fez ${Number(roundLeader.pontos || 0).toFixed(2)} pts na rodada.`, participantId: roundLeader.id, value: `${Number(roundLeader.pontos || 0).toFixed(2)} pts` },
+    state.participants[1] && { code: "chase", tone: "silver", label: "Na cola", title: state.participants[1].cartolaTeamName || state.participants[1].nome, body: "A disputa pelo topo esta viva.", participantId: state.participants[1].id, value: "#2" },
+    state.participants[3] && { code: "lantern", tone: "bronze", label: "Ainda da tempo", title: state.participants[3].cartolaTeamName || state.participants[3].nome, body: "Uma rodada boa muda tudo.", participantId: state.participants[3].id, value: "#4" },
+  ].filter(Boolean);
 }
 
 refreshDerived();

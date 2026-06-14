@@ -1,6 +1,7 @@
 import { isAuthorized } from "../lib/auth.js";
 import {
   SCORING_ENGINE_VERSION,
+  buildRoundScoreRawPayload,
   extractCartolaRoundSnapshot,
   getCartolaMatches,
   getCartolaRounds,
@@ -128,6 +129,7 @@ export default async function handler(req, res) {
         const payload = await getCartolaTeamById(participant.cartolaTimeId, roundId, competition, { timeoutMs: 7000 });
         await saveRawPayload(endpoint, `${competition}:team:${participant.cartolaTimeId}:round:${roundId}`, 200, payload);
         const snapshot = extractCartolaRoundSnapshot(payload, scoredAthletes, matches);
+        const rawPayload = buildRoundScoreRawPayload(payload, scoredAthletes, matches);
         const points = snapshot?.points ?? null;
         if (points == null) {
           return {
@@ -138,7 +140,7 @@ export default async function handler(req, res) {
             error: `Cartola ainda não liberou pontos para este time na rodada ${roundId}.`,
           };
         }
-        await upsertRoundScore(participant, roundId, payload, points, snapshot);
+        await upsertRoundScore(participant, roundId, rawPayload, points, snapshot);
         return {
           ok: true,
           participantId: participant.id,

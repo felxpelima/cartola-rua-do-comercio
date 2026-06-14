@@ -28,6 +28,7 @@ model AppConfig {
   ligaSlug       String   @default("cartola-rua-do-comercio")
   competition    String   @default("copa")
   temporada      Int      @default(2026)
+  mural          String   @default("")
   updatedAt      DateTime @updatedAt
 }
 

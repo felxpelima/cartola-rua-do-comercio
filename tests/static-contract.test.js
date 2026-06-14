@@ -8,14 +8,14 @@ function read(file) {
 
 test("public page exposes the IDs required by landing.js", () => {
   const html = read("index.html");
-  for (const id of ["titulo", "subtitulo", "total", "chipN", "chipValor", "prizes", "podium", "lista", "roundList", "badgeList"]) {
+  for (const id of ["titulo", "subtitulo", "total", "chipN", "chipValor", "prizes", "podium", "lista", "roundList", "badgeList", "highlights", "shareRoundBtn", "roundCardBtn", "roundShareNote", "backToTop"]) {
     assert.match(html, new RegExp(`id="${id}"`), `${id} must exist in index.html`);
   }
 });
 
 test("admin page exposes the IDs required by admin.js", () => {
   const html = read("admin.html");
-  for (const id of ["teamSearch", "teamSearchBtn", "syncBtn", "roundNote", "syncNote", "sourceNote", "syncLog", "participants", "saveBtn", "ligaSlug", "competition", "temporada"]) {
+  for (const id of ["teamSearch", "teamSearchBtn", "syncBtn", "roundNote", "syncNote", "sourceNote", "syncLog", "participants", "saveBtn", "ligaSlug", "competition", "temporada", "mural", "backToTop"]) {
     assert.match(html, new RegExp(`id="${id}"`), `${id} must exist in admin.html`);
   }
 });
@@ -38,8 +38,8 @@ test("admin Cartola search separates add and replace actions", () => {
 
 test("admin assets use a cache-busting version after sync fixes", () => {
   const html = read("admin.html");
-  assert.match(html, /styles\.css\?v=manual-override-captain-fix/);
-  assert.match(html, /admin\.js\?v=manual-override-captain-fix/);
+  assert.match(html, /styles\.css\?v=social-hub/);
+  assert.match(html, /admin\.js\?v=social-hub/);
 });
 
 test("admin manual point edits are posted as round overrides", () => {
@@ -59,9 +59,19 @@ test("admin sync log reports teams without released Cartola points", () => {
 
 test("participant page exposes the IDs required by participant.js", () => {
   const html = read("participant.html");
-  for (const id of ["profileApp", "profileAvatar", "profileRank", "profileName", "profileTeam", "profileTotal", "profileRound", "profileAverage", "profileBest", "profileBadges", "profileHistory", "shareProfileBtn", "shareProfileNote"]) {
+  for (const id of ["profileApp", "profileAvatar", "profileRank", "profileName", "profileTeam", "profileTotal", "profileRound", "profileAverage", "profileBest", "profileBadges", "profileHistory", "shareProfileBtn", "shareProfileNote", "profileRivals", "lineupSummary", "lineupPitch", "benchList", "profileShareCard", "profileShareTitle", "profileShareText", "profileCardBtn", "backToTop"]) {
     assert.match(html, new RegExp(`id="${id}"`), `${id} must exist in participant.html`);
   }
+});
+
+test("public data contract exposes social hub fields", () => {
+  const db = read("lib/db.js");
+  const dataApi = read("api/data.js");
+  assert.match(db, /highlights: buildHighlights/);
+  assert.match(db, /lineup/);
+  assert.match(db, /rivals/);
+  assert.match(db, /mural: config\.mural/);
+  assert.match(dataApi, /mural: text/);
 });
 
 test("source files do not contain common mojibake markers", () => {

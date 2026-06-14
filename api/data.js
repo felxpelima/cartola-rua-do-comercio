@@ -58,6 +58,7 @@ function sanitize(body) {
       ligaSlug: text(cfg.ligaSlug || "cartola-rua-do-comercio", "", 120),
       competition: cfg.competition === "brasileirao" ? "brasileirao" : "copa",
       temporada: Math.trunc(number(cfg.temporada, 2026)),
+      mural: text(cfg.mural || "", "", 280),
     },
   };
 }

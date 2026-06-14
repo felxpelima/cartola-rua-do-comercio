@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Anton&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/styles.css?v=manual-override-captain-fix" />
+  <link rel="stylesheet" href="/styles.css?v=social-hub" />
 </head>
 <body>
   <div class="bg-grain"></div>
@@ -76,6 +76,14 @@
     </div>
 
     <div class="admin-block glass">
+      <div class="block-label">Mural da rodada</div>
+      <label class="field"><span>Recado publico para a liga</span>
+        <textarea id="mural" maxlength="280" rows="3" placeholder="Ex.: Rodada valendo, olho no capitao e sem choro depois do fechamento."></textarea>
+      </label>
+      <div class="note muted">Aparece no topo da pagina publica como recado curto do organizador.</div>
+    </div>
+
+    <div class="admin-block glass">
       <div class="block-label">Premiação</div>
       <div class="grid-2">
         <label class="field"><span>Valor por pessoa (R$)</span><input id="valor" type="number" step="0.01" /></label>
@@ -124,6 +132,8 @@
   </div>
 
   <div class="toast" id="toast"></div>
-  <script src="/admin.js?v=manual-override-captain-fix"></script>
+  <button id="backToTop" class="back-to-top" type="button" aria-label="Voltar ao topo" title="Voltar ao topo" disabled>&uarr;</button>
+  <script src="/back-to-top.js?v=back-top"></script>
+  <script src="/admin.js?v=social-hub"></script>
 </body>
 </html>
