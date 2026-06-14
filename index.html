@@ -3,17 +3,17 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>Cartola Rua do Comércio · Copa do Mundo 2026</title>
-  <meta name="description" content="Classificação ao vivo e premiação do bolão Cartola Rua do Comércio — Copa do Mundo 2026." />
+  <title>Liga Rua do Comércio · Copa do Mundo 2026</title>
+  <meta name="description" content="Classificação, rodada atual, premiação e conquistas da Liga Rua do Comércio no Cartola Copa 2026." />
   <meta name="theme-color" content="#040d09" />
   <meta name="color-scheme" content="dark" />
   <meta property="og:type" content="website" />
-  <meta property="og:title" content="Cartola Rua do Comércio 🏆" />
-  <meta property="og:description" content="Acompanhe a classificação e a premiação do bolão da Copa do Mundo 2026." />
+  <meta property="og:title" content="Liga Rua do Comércio" />
+  <meta property="og:description" content="Acompanhe a classificação e a resenha da Copa do Mundo 2026." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Anton&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/styles.css?v=android-fix" />
+  <link rel="stylesheet" href="/styles.css?v=visual-cleanup" />
 </head>
 <body>
   <div class="bg-grain"></div>
@@ -23,7 +23,7 @@
   <div class="wrap">
     <header class="hero">
       <div class="topbar">
-        <span class="kicker">Bolão Oficial</span>
+        <span class="kicker">Liga oficial</span>
         <a class="lock-btn" href="/admin" title="Painel do organizador">🔒 <span>Organizador</span></a>
       </div>
 
@@ -41,7 +41,7 @@
         </div>
       </div>
 
-      <h1 class="title" id="titulo">Cartola Rua do Comércio</h1>
+      <h1 class="title" id="titulo">Cartola Rua do Comercio</h1>
 
       <div class="subtitle-pill">
         <span class="live-dot"></span>
@@ -52,7 +52,6 @@
     </header>
 
     <main id="app">
-      <!-- PREMIAÇÃO -->
       <section>
         <div class="section-head"><span class="sec-kicker">Premiação</span><h2 class="sec-title">Mundial</h2></div>
         <div class="pot-card glass">
@@ -66,17 +65,26 @@
         <div class="prize-grid" id="prizes"></div>
       </section>
 
-      <!-- CLASSIFICAÇÃO -->
       <section>
         <div class="section-head"><span class="sec-kicker">Classificação</span><h2 class="sec-title">Pódio</h2></div>
         <div class="podium" id="podium" style="display:none"></div>
         <div class="rank-list" id="lista"></div>
       </section>
+
+      <section>
+        <div class="section-head"><span class="sec-kicker">Rodada atual</span><h2 class="sec-title">Quem mitou</h2></div>
+        <div class="rank-list compact-list" id="roundList"></div>
+      </section>
+
+      <section>
+        <div class="section-head"><span class="sec-kicker">Conquistas</span><h2 class="sec-title">Resenha</h2></div>
+        <div class="badge-grid" id="badgeList"></div>
+      </section>
     </main>
 
-    <footer class="footer" id="footer">Atualizado pelo organizador - UGO</footer>
+    <footer class="footer" id="footer">Atualizado pelo organizador</footer>
   </div>
 
-  <script src="/landing.js"></script>
+  <script src="/landing.js?v=visual-cleanup"></script>
 </body>
 </html>

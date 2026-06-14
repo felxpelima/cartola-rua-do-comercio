@@ -3,8 +3,14 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Landing pública + painel admin do bolão Cartola Rua do Comércio (Copa do Mundo 2026).",
+  "description": "Plataforma pública e painel admin da Liga Rua do Comércio no Cartola Copa 2026.",
   "scripts": {
+    "check:js": "node scripts/check-js.mjs",
+    "check:prisma": "node scripts/prisma-validate.mjs",
+    "test": "node --test",
+    "verify": "npm run check:js && npm run check:prisma && npm test",
+    "probe:cartola": "node scripts/cartola-probe.mjs",
+    "preview:local": "node scripts/preview-local.mjs",
     "postinstall": "prisma generate",
     "db:push": "prisma db push"
   },

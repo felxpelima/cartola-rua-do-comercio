@@ -1,68 +1,98 @@
-# Cartola Rua do Comércio 🏆
+# Liga Rua do Comércio
 
-Landing pública (classificação + premiação do bolão) e painel admin protegido, focado na Copa do Mundo 2026.
+Plataforma pública + painel admin para a liga local criada no Cartola FC Copa do Mundo 2026.
 
-- **`/`** — página pública que você manda pros membros (só leitura, atualiza sozinha).
-- **`/admin`** — painel onde você lança pontos e configura a premiação (protegido por senha).
+## O que já faz
 
-Stack: site estático + funções serverless (`/api`) na **Vercel**, banco no **Prisma Postgres** (provisionado pela Vercel Marketplace), acesso via **Prisma ORM**. A premiação é calculada sozinha: `valor por pessoa × nº de participantes`, dividido pelas porcentagens de 1º/2º/3º.
+- Página pública com premiação, pódio, ranking geral, ranking da rodada e badges.
+- Perfil público por participante com estatísticas, histórico e resumo compartilhável.
+- Painel admin protegido por senha.
+- Busca de times no Cartola Copa.
+- Vínculo de participante com `time_id` do Cartola.
+- Sincronização automática da rodada via backend.
+- Fallback manual para operar mesmo se a API falhar.
+- Banco relacional com participantes, rodadas, pontuações, logs de sync e payload bruto do Cartola.
 
----
+## Stack
 
-## Passo a passo (uns 10 minutos)
+- Site estático: `index.html`, `landing.js`, `styles.css`.
+- Admin: `admin.html`, `admin.js`.
+- APIs Vercel Serverless: `api/`.
+- Banco: Prisma Postgres.
+- ORM: Prisma.
 
-### 1. Subir o projeto na Vercel
-Suba esta pasta como um projeto (via GitHub ou `vercel` CLI). Sem framework/build pra configurar — a Vercel detecta o `/api` como funções e serve o resto como estático.
+## Configuração
 
-### 2. Criar o banco (Prisma Postgres)
-No projeto Vercel: aba **Storage → Connect Database → escolha Prisma (Prisma Postgres)** e conecte ao projeto.
-A integração cria o banco e injeta a variável **`DATABASE_URL`** automaticamente — não precisa copiar nada.
-
-### 3. Criar a tabela
-Na sua máquina, dentro da pasta do projeto:
 ```bash
 npm install
-npx vercel link            # vincula à pasta ao projeto na Vercel
-npx vercel env pull .env   # baixa o DATABASE_URL pra cá
-npx prisma db push         # cria a tabela no banco
+npx vercel link
+npx vercel env pull .env
+npx prisma db push
 ```
 
-### 4. Variáveis de ambiente (Vercel → Settings → Environment Variables)
-| Variável | O que é |
+Variáveis:
+
+| Variável | Uso |
 |---|---|
-| `DATABASE_URL` | já veio do passo 2 (integração Prisma) |
-| `ADMIN_PASSWORD` | a senha que você digita no `/admin` |
-| `JWT_SECRET` | texto longo e aleatório (ex.: `openssl rand -base64 32`) |
+| `DATABASE_URL` | Conexão Prisma Postgres. |
+| `ADMIN_PASSWORD` | Senha do painel `/admin`. |
+| `JWT_SECRET` | Segredo do token de login. |
+| `CRON_SECRET` | Segredo opcional para disparar sync por cron externo. |
 
-Depois de adicionar as duas, **faça um redeploy**.
+## Como operar
 
-### 5. Domínio próprio
-**Vercel → Settings → Domains → Add**, aponte seu domínio e siga o DNS. Pronto, é só mandar o link no grupo.
+1. Entre em `/admin`.
+2. Configure premiação e identidade.
+3. Busque cada time no Cartola e adicione/vincule ao participante.
+4. Clique em `Salvar e publicar`.
+5. Clique em `Sincronizar rodada`.
+6. Confira a página pública.
 
----
+## APIs internas
 
-## Como usar
-1. Acesse `/admin`, entre com a `ADMIN_PASSWORD`.
-2. Configure valor por pessoa e as porcentagens (somando 100%).
-3. Adicione os participantes e lance os pontos (cartoletas) de cada um.
-4. Clique **Salvar e publicar** — a classificação e os prêmios aparecem na página pública na hora, já reordenados por pontos.
+| Endpoint | Método | Acesso | Função |
+|---|---|---|---|
+| `/api/data` | GET | Público | Retorna estado da liga. |
+| `/api/data` | POST | Admin | Salva configuração/participantes. |
+| `/api/login` | POST | Público | Gera token admin. |
+| `/api/cartola-search` | GET | Admin | Busca times no Cartola. |
+| `/api/sync-cartola` | POST | Admin | Sincroniza rodada. |
+| `/api/sync-cartola?secret=...` | GET | Cron | Sincroniza via rotina externa. |
 
-Não precisa popular nada antes: enquanto a tabela estiver vazia, o site mostra a configuração padrão; o primeiro "Salvar" já cria o registro.
+## Páginas
 
-## Observações
-- O `JWT_SECRET` e a conexão do banco ficam **só no servidor** (variáveis da Vercel). O navegador nunca os vê, e o público só lê via `/api/data`.
-- O login é uma senha única + token de 7 dias — simples e suficiente pra um grupo. Dá pra evoluir pra Supabase Auth/multiusuário depois, se quiser.
-- **Troubleshooting:** se o deploy reclamar de "Query engine binary" / engine não encontrada, é só rodar `prisma generate` no build (adicione `"buildCommand": "prisma generate"` no `vercel.json`) — o `postinstall` já cobre o caso normal.
+| Rota | Função |
+|---|---|
+| `/` | Classificação geral, premiação, rodada e conquistas. |
+| `/participant?id=ID` | Perfil individual com estatísticas e histórico. |
+| `/admin` | Painel do organizador. |
 
-## Estrutura
+## Testes e debug local
+
+```bash
+npm run verify
+npm run probe:cartola
 ```
-index.html / landing.js    → página pública
-admin.html / admin.js       → painel do organizador
-styles.css                  → tema visual (compartilhado)
-api/data.js                 → GET público + POST protegido
-api/login.js                → valida a senha e devolve o token (JWT)
-lib/db.js                   → lê/grava o estado (Prisma)
-lib/prisma.js               → cliente Prisma (singleton)
-lib/auth.js                 → JWT
-prisma/schema.prisma        → modelo do banco
+
+O `verify` roda sintaxe JS, valida Prisma e executa os testes locais. O `probe:cartola` consulta endpoints públicos do Cartola Copa e mostra status/latência sem gravar no banco.
+
+## Cron
+
+Use um agendador externo chamando:
+
+```text
+https://SEU_DOMINIO/api/sync-cartola?secret=SEU_CRON_SECRET
+```
+
+Também é possível enviar o segredo pelo header `x-cron-secret`.
+
+## Arquivos principais
+
+```text
+api/cartola-search.js     busca times no Cartola
+api/sync-cartola.js       sincroniza rodada e grava logs
+lib/cartola.js            cliente dos endpoints Cartola
+lib/db.js                 leitura/escrita do banco e montagem do ranking
+prisma/schema.prisma      modelos relacionais
+ROADMAP.md                plano de produto e evolução
 ```

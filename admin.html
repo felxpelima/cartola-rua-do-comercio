@@ -6,17 +6,16 @@
   <meta name="robots" content="noindex" />
   <meta name="theme-color" content="#040d09" />
   <meta name="color-scheme" content="dark" />
-  <title>Painel · Cartola Rua do Comércio</title>
+  <title>Painel · Liga Rua do Comércio</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Anton&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/styles.css?v=android-fix" />
+  <link rel="stylesheet" href="/styles.css?v=reserve-sync-fix" />
 </head>
 <body>
   <div class="bg-grain"></div>
   <div class="bg-beams"></div>
 
-  <!-- LOGIN -->
   <div id="loginView" class="login-shell">
     <div class="login-card glass">
       <div class="lk-trophy">
@@ -27,7 +26,7 @@
         </svg>
       </div>
       <h2>Painel do Organizador</h2>
-      <div class="lk-sub">Cartola Rua do Comércio</div>
+      <div class="lk-sub">Liga Rua do Comércio</div>
       <label class="field"><span>Senha de acesso</span>
         <input id="pwd" type="password" placeholder="••••••" autocomplete="current-password" autocapitalize="none" autocorrect="off" spellcheck="false" />
       </label>
@@ -37,19 +36,47 @@
     </div>
   </div>
 
-  <!-- PAINEL -->
   <div id="panelView" class="wrap" style="display:none">
     <div class="admin-topbar">
-      <span class="badge">⚙️</span>
-      <h2>Organizador</h2>
+      <span class="badge">⚙</span>
+      <div>
+        <h2>Organizador</h2>
+        <div class="muted" id="adminSubtitle">Liga Rua do Comércio</div>
+      </div>
       <span class="spacer"></span>
       <a class="btn btn-ghost" href="/" style="font-size:13px;padding:9px 14px">Ver site</a>
       <button class="btn btn-ghost" id="logoutBtn" style="font-size:13px;padding:9px 14px">Sair</button>
     </div>
 
-    <!-- Premiação -->
     <div class="admin-block glass">
-      <div class="block-label">💰 Premiação</div>
+      <div class="block-label">Automação Cartola</div>
+      <div class="admin-status-grid">
+        <div class="admin-status-card">
+          <span>Rodada</span>
+          <strong id="roundNote">Aguardando</strong>
+        </div>
+        <div class="admin-status-card">
+          <span>Última sincronização</span>
+          <strong id="syncNote">Ainda não sincronizado</strong>
+        </div>
+        <div class="admin-status-card">
+          <span>Fonte</span>
+          <strong id="sourceNote">Manual</strong>
+        </div>
+      </div>
+      <div class="sync-actions">
+        <label class="field team-search-field"><span>Buscar time no Cartola</span>
+          <input id="teamSearch" type="search" placeholder="Digite o nome do time ou cartoleiro" autocomplete="off" />
+        </label>
+        <button class="btn btn-green" id="teamSearchBtn" type="button">Buscar</button>
+        <button class="btn btn-gold" id="syncBtn" type="button">Sincronizar rodada</button>
+      </div>
+      <div id="teamResults" class="team-results" aria-live="polite"></div>
+      <div id="syncLog" class="sync-log" aria-live="polite"></div>
+    </div>
+
+    <div class="admin-block glass">
+      <div class="block-label">Premiação</div>
       <div class="grid-2">
         <label class="field"><span>Valor por pessoa (R$)</span><input id="valor" type="number" step="0.01" /></label>
         <label class="field"><span>% 1º lugar</span><input id="pct1" type="number" step="1" /></label>
@@ -59,21 +86,22 @@
       <div class="note" id="pctNote"></div>
     </div>
 
-    <!-- Participantes -->
     <div class="admin-block glass">
-      <div style="display:flex;align-items:center;margin-bottom:14px">
-        <div class="block-label" style="flex:1;margin:0">👥 Participantes</div>
+      <div style="display:flex;align-items:center;margin-bottom:14px;gap:10px">
+        <div class="block-label" style="flex:1;margin:0">Participantes</div>
         <button class="btn btn-green" id="addBtn" style="padding:9px 15px;font-size:13px">+ Adicionar</button>
       </div>
       <div id="participants"></div>
     </div>
 
-    <!-- Identidade -->
     <div class="admin-block glass">
-      <div class="block-label">🏷️ Identidade</div>
+      <div class="block-label">Identidade</div>
       <div class="grid-2">
         <label class="field"><span>Título</span><input id="titulo" type="text" maxlength="120" /></label>
         <label class="field"><span>Subtítulo</span><input id="subtitulo" type="text" maxlength="120" /></label>
+        <label class="field"><span>Slug da liga</span><input id="ligaSlug" type="text" maxlength="120" /></label>
+        <label class="field"><span>Competição</span><input id="competition" type="text" maxlength="30" /></label>
+        <label class="field"><span>Temporada</span><input id="temporada" type="number" step="1" /></label>
       </div>
     </div>
 
@@ -96,6 +124,6 @@
   </div>
 
   <div class="toast" id="toast"></div>
-  <script src="/admin.js?v=confirm-delete"></script>
+  <script src="/admin.js?v=reserve-sync-fix"></script>
 </body>
 </html>

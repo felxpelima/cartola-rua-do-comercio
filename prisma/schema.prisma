@@ -15,3 +15,131 @@ model Estado {
   data      Json
   updatedAt DateTime @updatedAt
 }
+
+// Configuração pública da liga e da premiação.
+model AppConfig {
+  id             Int      @id @default(1)
+  titulo         String   @default("Liga Rua do Comércio")
+  subtitulo      String   @default("Copa do Mundo 2026")
+  valorPorPessoa Float    @default(50)
+  pct1           Float    @default(50)
+  pct2           Float    @default(30)
+  pct3           Float    @default(20)
+  ligaSlug       String   @default("cartola-rua-do-comercio")
+  competition    String   @default("copa")
+  temporada      Int      @default(2026)
+  updatedAt      DateTime @updatedAt
+}
+
+model Participant {
+  id               String           @id @default(cuid())
+  nome             String
+  apelido          String?
+  cartolaTimeId    Int?             @unique
+  cartolaSlug      String?
+  cartolaTeamName  String?
+  cartolaOwnerName String?
+  escudoUrl        String?
+  manualPoints     Float            @default(0)
+  active           Boolean          @default(true)
+  notes            String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  scores           RoundScore[]
+  overrides        ManualOverride[]
+  badges           BadgeAward[]
+
+  @@index([active, nome])
+}
+
+model Round {
+  id          Int          @id
+  nome        String?
+  startsAt    DateTime?
+  endsAt      DateTime?
+  status      String?
+  totalGames  Int?
+  validGames  Int?
+  syncedAt    DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  scores      RoundScore[]
+  overrides   ManualOverride[]
+
+  @@index([startsAt])
+}
+
+model RoundScore {
+  id               String      @id @default(cuid())
+  participantId    String
+  roundId          Int
+  cartolaTimeId    Int?
+  autoPoints       Float?
+  manualPoints     Float?
+  finalPoints      Float       @default(0)
+  pontosCampeonato Float?
+  patrimonio       Float?
+  source           String      @default("manual")
+  raw              Json?
+  syncedAt         DateTime?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  participant      Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  round            Round       @relation(fields: [roundId], references: [id], onDelete: Cascade)
+
+  @@unique([participantId, roundId])
+  @@index([roundId, finalPoints])
+}
+
+model ManualOverride {
+  id            String      @id @default(cuid())
+  participantId String
+  roundId       Int?
+  points        Float
+  type          String      @default("round")
+  reason        String?
+  createdAt     DateTime    @default(now())
+  participant   Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  round         Round?      @relation(fields: [roundId], references: [id], onDelete: SetNull)
+
+  @@index([participantId, roundId])
+}
+
+model SyncRun {
+  id          String    @id @default(cuid())
+  competition String    @default("copa")
+  status      String
+  roundId     Int?
+  message     String?
+  details     Json?
+  updatedCount Int      @default(0)
+  errorCount   Int      @default(0)
+  startedAt   DateTime  @default(now())
+  finishedAt  DateTime?
+
+  @@index([startedAt])
+}
+
+model RawCartolaPayload {
+  id        String   @id @default(cuid())
+  endpoint  String
+  cacheKey  String
+  status    Int?
+  payload   Json
+  createdAt DateTime @default(now())
+
+  @@index([cacheKey, createdAt])
+}
+
+model BadgeAward {
+  id            String      @id @default(cuid())
+  participantId String
+  code          String
+  label         String
+  description   String?
+  roundId       Int?
+  createdAt     DateTime    @default(now())
+  participant   Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+
+  @@unique([participantId, code, roundId])
+}

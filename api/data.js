@@ -1,22 +1,55 @@
 import { getState, setState } from "../lib/db.js";
 import { isAuthorized } from "../lib/auth.js";
 
+function text(value, fallback = "", max = 120) {
+  return String(value == null ? fallback : value).slice(0, max);
+}
+
+function number(value, fallback = 0) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function cartolaId(value) {
+  const id = Number(value);
+  return Number.isFinite(id) && id > 0 ? Math.trunc(id) : null;
+}
+
+function safeAuthorized(req) {
+  try {
+    return isAuthorized(req);
+  } catch (e) {
+    return false;
+  }
+}
+
 function sanitize(body) {
   const cfg = (body && body.config) || {};
   const list = Array.isArray(body && body.participants) ? body.participants : [];
+
   return {
     participants: list.slice(0, 1000).map((p) => ({
-      id: String((p && p.id) || "p" + Math.random().toString(36).slice(2, 10)),
-      nome: String((p && p.nome) || "").slice(0, 80),
-      pontos: Number(p && p.pontos) || 0,
+      id: text((p && p.id) || "p" + Math.random().toString(36).slice(2, 10), "", 80),
+      nome: text((p && (p.nome || p.cartolaTeamName)) || "", "", 80),
+      apelido: p && p.apelido ? text(p.apelido, "", 40) : null,
+      pontos: number(p && (p.pontos ?? p.manualPoints)),
+      manualPoints: number(p && (p.manualPoints ?? p.pontos)),
+      cartolaTimeId: cartolaId(p && p.cartolaTimeId),
+      cartolaSlug: p && p.cartolaSlug ? text(p.cartolaSlug, "", 120) : null,
+      cartolaTeamName: p && p.cartolaTeamName ? text(p.cartolaTeamName, "", 100) : null,
+      cartolaOwnerName: p && p.cartolaOwnerName ? text(p.cartolaOwnerName, "", 100) : null,
+      escudoUrl: p && p.escudoUrl ? text(p.escudoUrl, "", 500) : null,
     })),
     config: {
-      valorPorPessoa: Number(cfg.valorPorPessoa) || 0,
-      pct1: Number(cfg.pct1) || 0,
-      pct2: Number(cfg.pct2) || 0,
-      pct3: Number(cfg.pct3) || 0,
-      titulo: String(cfg.titulo || "Cartola Rua do Comércio").slice(0, 120),
-      subtitulo: String(cfg.subtitulo || "Copa do Mundo 2026").slice(0, 120),
+      valorPorPessoa: number(cfg.valorPorPessoa),
+      pct1: number(cfg.pct1),
+      pct2: number(cfg.pct2),
+      pct3: number(cfg.pct3),
+      titulo: text(cfg.titulo || "Liga Rua do Comércio", "", 120),
+      subtitulo: text(cfg.subtitulo || "Copa do Mundo 2026", "", 120),
+      ligaSlug: text(cfg.ligaSlug || "cartola-rua-do-comercio", "", 120),
+      competition: cfg.competition === "brasileirao" ? "brasileirao" : "copa",
+      temporada: Math.trunc(number(cfg.temporada, 2026)),
     },
   };
 }
@@ -33,7 +66,7 @@ export default async function handler(req, res) {
   }
 
   if (req.method === "POST") {
-    if (!isAuthorized(req)) {
+    if (!safeAuthorized(req)) {
       return res.status(401).json({ error: "Não autorizado" });
     }
     try {

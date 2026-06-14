@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Perfil · Liga Rua do Comércio</title>
+  <meta name="description" content="Perfil, histórico e conquistas do participante na Liga Rua do Comércio." />
+  <meta name="theme-color" content="#040d09" />
+  <meta name="color-scheme" content="dark" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/styles.css?v=visual-cleanup" />
+</head>
+<body>
+  <div class="bg-grain"></div>
+  <div class="bg-beams"></div>
+  <div class="bg-pitch"><div class="circle"></div><div class="line"></div></div>
+
+  <div class="wrap">
+    <header class="profile-top">
+      <a class="btn btn-ghost" href="/">← Classificação</a>
+      <a class="lock-btn" href="/admin" title="Painel do organizador">🔒 <span>Organizador</span></a>
+    </header>
+
+    <main id="profileApp">
+      <section class="profile-hero glass">
+        <div id="profileAvatar" class="profile-avatar">?</div>
+        <div class="profile-copy">
+          <span id="profileRank" class="profile-rank">#</span>
+          <h1 id="profileName">Participante</h1>
+          <p id="profileTeam">Liga Rua do Comércio</p>
+        </div>
+      </section>
+
+      <section class="profile-stat-grid">
+        <div class="profile-stat glass"><span>Total</span><strong id="profileTotal">0,00</strong></div>
+        <div class="profile-stat glass"><span>Rodada</span><strong id="profileRound">0,00</strong></div>
+        <div class="profile-stat glass"><span>Média</span><strong id="profileAverage">0,00</strong></div>
+        <div class="profile-stat glass"><span>Melhor</span><strong id="profileBest">0,00</strong></div>
+      </section>
+
+      <section>
+        <div class="section-head"><span class="sec-kicker">Conquistas</span><h2 class="sec-title">Badges</h2></div>
+        <div class="badge-grid" id="profileBadges"></div>
+      </section>
+
+      <section>
+        <div class="section-head"><span class="sec-kicker">Histórico</span><h2 class="sec-title">Rodadas</h2></div>
+        <div class="history-list" id="profileHistory"></div>
+      </section>
+
+      <section class="profile-actions">
+        <button id="shareProfileBtn" class="btn btn-gold" type="button">Copiar resumo</button>
+        <span id="shareProfileNote" class="muted"></span>
+      </section>
+    </main>
+
+    <footer class="footer" id="profileFooter">Liga Rua do Comércio</footer>
+  </div>
+
+  <script src="/participant.js?v=visual-cleanup"></script>
+</body>
+</html>
