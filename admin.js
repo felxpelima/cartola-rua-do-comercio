@@ -511,6 +511,7 @@ async function save() {
       pontos: totalPoints,
       manualPoints: pointsWereEdited || !participant.cartolaTimeId ? Number(participant.manualPoints ?? totalPoints) || 0 : Number(participant.manualPoints) || 0,
       currentRoundPoints: roundPoints,
+      manualOverride: pointsWereEdited || !participant.cartolaTimeId,
       cartolaTimeId: participant.cartolaTimeId || null,
       cartolaSlug: participant.cartolaSlug || null,
       cartolaTeamName: participant.cartolaTeamName || null,
@@ -551,12 +552,10 @@ async function save() {
     }
 
     if (!response.ok) throw new Error("erro");
-    state.config = payload.config;
-    state.participants = payload.participants;
     editedPointIds = new Set();
     toast("Publicado. A página pública já pode ler a atualização.", "ok");
     $("savedAt").textContent = "Salvo às " + new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-    fillForm();
+    await enterPanel();
   } catch (e) {
     toast("Não foi possível salvar. Tente de novo.", "err");
   } finally {

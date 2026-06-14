@@ -38,8 +38,17 @@ test("admin Cartola search separates add and replace actions", () => {
 
 test("admin assets use a cache-busting version after sync fixes", () => {
   const html = read("admin.html");
-  assert.match(html, /styles\.css\?v=reserve-sync-fix/);
-  assert.match(html, /admin\.js\?v=reserve-sync-fix/);
+  assert.match(html, /styles\.css\?v=manual-override-captain-fix/);
+  assert.match(html, /admin\.js\?v=manual-override-captain-fix/);
+});
+
+test("admin manual point edits are posted as round overrides", () => {
+  const admin = read("admin.js");
+  const dataApi = read("api/data.js");
+  const db = read("lib/db.js");
+  assert.match(admin, /manualOverride: pointsWereEdited/);
+  assert.match(dataApi, /manualOverride: Boolean/);
+  assert.match(db, /upsertManualRoundScore/);
 });
 
 test("admin sync log reports teams without released Cartola points", () => {

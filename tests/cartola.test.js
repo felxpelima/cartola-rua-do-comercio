@@ -53,8 +53,27 @@ test("extractCartolaRoundPoints computes live partials from scored athletes", ()
     },
   };
 
-  assert.equal(calculateCartolaPartialPoints(teamPayload, scoredPayload), 11.25);
-  assert.equal(extractCartolaRoundPoints(teamPayload, scoredPayload), 11.25);
+  assert.equal(calculateCartolaPartialPoints(teamPayload, scoredPayload), 9);
+  assert.equal(extractCartolaRoundPoints(teamPayload, scoredPayload), 9);
+});
+
+test("calculateCartolaPartialPoints applies 1.5x captain multiplier for Copa scoring", () => {
+  const teamPayload = {
+    pontos: null,
+    capitao_id: 94919,
+    atletas: [
+      { atleta_id: 94919, posicao_id: 4, clube_id: 2365, pontos_num: 0 },
+      { atleta_id: 113735, posicao_id: 6, clube_id: 2326, pontos_num: 0 },
+    ],
+  };
+  const scoredPayload = {
+    atletas: {
+      94919: { pontuacao: 6.7, entrou_em_campo: true },
+      113735: { pontuacao: 0, entrou_em_campo: false },
+    },
+  };
+
+  assert.equal(calculateCartolaPartialPoints(teamPayload, scoredPayload), 10.05);
 });
 
 test("calculateCartolaPartialPoints applies normal bench substitution by position", () => {

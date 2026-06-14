@@ -10,6 +10,12 @@ function number(value, fallback = 0) {
   return Number.isFinite(n) ? n : fallback;
 }
 
+function nullableNumber(value) {
+  if (value == null || value === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
 function cartolaId(value) {
   const id = Number(value);
   return Number.isFinite(id) && id > 0 ? Math.trunc(id) : null;
@@ -34,6 +40,8 @@ function sanitize(body) {
       apelido: p && p.apelido ? text(p.apelido, "", 40) : null,
       pontos: number(p && (p.pontos ?? p.manualPoints)),
       manualPoints: number(p && (p.manualPoints ?? p.pontos)),
+      currentRoundPoints: nullableNumber(p && p.currentRoundPoints),
+      manualOverride: Boolean(p && p.manualOverride),
       cartolaTimeId: cartolaId(p && p.cartolaTimeId),
       cartolaSlug: p && p.cartolaSlug ? text(p.cartolaSlug, "", 120) : null,
       cartolaTeamName: p && p.cartolaTeamName ? text(p.cartolaTeamName, "", 100) : null,
