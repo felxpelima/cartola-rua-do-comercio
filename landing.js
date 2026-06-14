@@ -78,6 +78,11 @@ function playedMarkup(participant) {
   return label ? ` <span class="played-count">${label} jogaram</span>` : "";
 }
 
+function compactPlayedMarkup(participant) {
+  const label = playedLabel(participant);
+  return label ? ` <span class="played-count">${label}</span>` : "";
+}
+
 async function load() {
   try {
     const response = await fetch("/api/data", { cache: "no-store" });
@@ -164,7 +169,7 @@ function renderRanking(participants) {
               <span class="pod-badge">${place}</span>
             </div>
             <div class="pod-name">${esc(teamName(participant))}</div>
-            <div class="pod-meta">${esc(ownerName(participant))}</div>
+            <div class="pod-meta">${esc(ownerName(participant))}${compactPlayedMarkup(participant)}</div>
           </a>
           <div class="pod-pts">${fmtPts(participant.pontos)}<span>pts</span></div>
           <div class="pod-block" style="height:${heights[index]}px;animation-delay:${index * 90}ms"><b>${place}</b></div>
