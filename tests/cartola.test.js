@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { calculateCartolaPartialPoints, cartolaUrl, extractCartolaRoundPoints, normalizeCartolaTeam } from "../lib/cartola.js";
+import { calculateCartolaPartialPoints, calculateCartolaPartialSnapshot, cartolaUrl, extractCartolaRoundPoints, normalizeCartolaTeam } from "../lib/cartola.js";
 
 test("cartolaUrl applies Copa prefix only for Copa competition", () => {
   assert.equal(cartolaUrl("/mercado/status", "copa"), "https://api.cartola.globo.com/copa/mercado/status");
@@ -105,6 +105,39 @@ test("calculateCartolaPartialPoints applies normal bench substitution by positio
   };
 
   assert.equal(calculateCartolaPartialPoints(teamPayload, scoredPayload, matchesPayload), 10.7);
+});
+
+test("calculateCartolaPartialSnapshot counts played player slots excluding coach", () => {
+  const teamPayload = {
+    pontos: null,
+    atletas: [
+      { atleta_id: 10, posicao_id: 2, clube_id: 2360, pontos_num: 0 },
+      { atleta_id: 20, posicao_id: 3, clube_id: 2365, pontos_num: 0 },
+      { atleta_id: 30, posicao_id: 5, clube_id: 2323, pontos_num: 0 },
+      { atleta_id: 40, posicao_id: 6, clube_id: 2323, pontos_num: 0 },
+    ],
+    reservas: [{ atleta_id: 50, posicao_id: 3, clube_id: 2354, pontos_num: 0 }],
+  };
+  const scoredPayload = {
+    atletas: {
+      10: { pontuacao: 2, entrou_em_campo: true },
+      40: { pontuacao: 0, entrou_em_campo: false },
+      50: { pontuacao: 5, entrou_em_campo: true },
+    },
+  };
+  const matchesPayload = {
+    partidas: [
+      { clube_casa_id: 2360, clube_visitante_id: 2358, periodo_tr: "POS_JOGO" },
+      { clube_casa_id: 2365, clube_visitante_id: 2354, periodo_tr: "POS_JOGO" },
+      { clube_casa_id: 2323, clube_visitante_id: 2324, periodo_tr: "", status_transmissao_tr: "CRIADA" },
+    ],
+  };
+
+  assert.deepEqual(calculateCartolaPartialSnapshot(teamPayload, scoredPayload, matchesPayload), {
+    points: 7,
+    playedCount: 2,
+    lineupCount: 3,
+  });
 });
 
 test("calculateCartolaPartialPoints applies luxury reserve when it beats lowest starter", () => {

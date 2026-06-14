@@ -1,7 +1,7 @@
 import { isAuthorized } from "../lib/auth.js";
 import {
   SCORING_ENGINE_VERSION,
-  extractCartolaRoundPoints,
+  extractCartolaRoundSnapshot,
   getCartolaMatches,
   getCartolaRounds,
   getCartolaScoredAthletes,
@@ -127,7 +127,8 @@ export default async function handler(req, res) {
       try {
         const payload = await getCartolaTeamById(participant.cartolaTimeId, roundId, competition, { timeoutMs: 7000 });
         await saveRawPayload(endpoint, `${competition}:team:${participant.cartolaTimeId}:round:${roundId}`, 200, payload);
-        const points = extractCartolaRoundPoints(payload, scoredAthletes, matches);
+        const snapshot = extractCartolaRoundSnapshot(payload, scoredAthletes, matches);
+        const points = snapshot?.points ?? null;
         if (points == null) {
           return {
             ok: false,
@@ -137,8 +138,15 @@ export default async function handler(req, res) {
             error: `Cartola ainda não liberou pontos para este time na rodada ${roundId}.`,
           };
         }
-        await upsertRoundScore(participant, roundId, payload, points);
-        return { ok: true, participantId: participant.id, cartolaTimeId: participant.cartolaTimeId, points };
+        await upsertRoundScore(participant, roundId, payload, points, snapshot);
+        return {
+          ok: true,
+          participantId: participant.id,
+          cartolaTimeId: participant.cartolaTimeId,
+          points,
+          playedCount: snapshot?.playedCount ?? null,
+          lineupCount: snapshot?.lineupCount ?? null,
+        };
       } catch (e) {
         await saveRawPayload(endpoint, `${competition}:team:${participant.cartolaTimeId}:round:${roundId}:error`, e.status || 0, {
           message: e.message || "Erro ao consultar time",
@@ -189,6 +197,8 @@ export default async function handler(req, res) {
           participantId: r.participantId,
           cartolaTimeId: r.cartolaTimeId,
           points: r.points,
+          playedCount: r.playedCount,
+          lineupCount: r.lineupCount,
         })),
         errors: errors.slice(0, 20),
         skipped: skipped.slice(0, 20),

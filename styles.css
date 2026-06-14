@@ -615,6 +615,12 @@ select:focus { border-color: rgba(47, 224, 140, 0.55); box-shadow: 0 0 0 3px rgb
   white-space: nowrap;
 }
 
+.played-count {
+  color: rgba(255, 255, 255, 0.56);
+  font-weight: 800;
+  margin-left: 7px;
+}
+
 .delta.up { color: var(--emerald); border-color: rgba(47, 224, 140, 0.24); }
 .delta.down { color: #f08a8a; border-color: rgba(240, 138, 138, 0.24); }
 

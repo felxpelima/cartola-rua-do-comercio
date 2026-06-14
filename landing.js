@@ -66,6 +66,18 @@ function deltaMarkup(delta) {
   return '<span class="delta flat">=</span>';
 }
 
+function playedLabel(participant) {
+  const played = Number(participant.playedCount);
+  const total = Number(participant.lineupCount);
+  if (!Number.isFinite(played) || !Number.isFinite(total) || total <= 0) return "";
+  return `${played}/${total}`;
+}
+
+function playedMarkup(participant) {
+  const label = playedLabel(participant);
+  return label ? ` <span class="played-count">${label} jogaram</span>` : "";
+}
+
 async function load() {
   try {
     const response = await fetch("/api/data", { cache: "no-store" });
@@ -180,7 +192,7 @@ function renderRanking(participants) {
               <span class="name">${esc(teamName(participant))}</span>
               ${deltaMarkup(participant.delta)}
             </div>
-            <div class="row-meta">${esc(ownerName(participant))}</div>
+            <div class="row-meta">${esc(ownerName(participant))}${playedMarkup(participant)}</div>
             <div class="bar"><i style="width:${width}%"></i></div>
           </div>
         </a>
@@ -211,7 +223,7 @@ function renderRoundRanking(roundRanking) {
             <div class="row-meta">${esc(ownerName(participant))}</div>
           </div>
         </a>
-        <div class="pts">${fmtPts(participant.pontos)}<span>rodada</span></div>
+        <div class="pts">${fmtPts(participant.pontos)}<span>${esc(playedLabel(participant) || "rodada")}</span></div>
       </div>`
     )
     .join("");

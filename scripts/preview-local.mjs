@@ -1,7 +1,7 @@
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { extname, join } from "node:path";
-import { SCORING_ENGINE_VERSION, extractCartolaRoundPoints, getCartolaMatches, getCartolaScoredAthletes, getCartolaStatus, getCartolaTeamById, searchCartolaTeams } from "../lib/cartola.js";
+import { SCORING_ENGINE_VERSION, extractCartolaRoundSnapshot, getCartolaMatches, getCartolaScoredAthletes, getCartolaStatus, getCartolaTeamById, searchCartolaTeams } from "../lib/cartola.js";
 
 const root = process.cwd();
 const preferredPort = Number(process.env.PORT || 4173);
@@ -158,7 +158,7 @@ function roundFromRequest(url, body, status) {
   return Number.isFinite(current) && current > 0 ? Math.trunc(current) : state.currentRound?.id || 1;
 }
 
-function upsertPreviewHistory(participant, roundId, points, source = "cartola") {
+function upsertPreviewHistory(participant, roundId, points, source = "cartola", progress = {}) {
   let history = state.history.find((item) => item.participantId === participant.id);
   if (!history) {
     history = { participantId: participant.id, nome: participant.nome, scores: [] };
@@ -166,7 +166,14 @@ function upsertPreviewHistory(participant, roundId, points, source = "cartola") 
   }
 
   const existing = history.scores.find((score) => Number(score.roundId) === Number(roundId));
-  const score = { roundId, points, source, syncedAt: new Date().toISOString() };
+  const score = {
+    roundId,
+    points,
+    source,
+    playedCount: progress.playedCount ?? null,
+    lineupCount: progress.lineupCount ?? null,
+    syncedAt: new Date().toISOString(),
+  };
   if (existing) Object.assign(existing, score);
   else history.scores.push(score);
 
@@ -174,6 +181,8 @@ function upsertPreviewHistory(participant, roundId, points, source = "cartola") 
   participant.pontos = total;
   participant.totalPoints = total;
   participant.currentRoundPoints = points;
+  participant.playedCount = progress.playedCount ?? null;
+  participant.lineupCount = progress.lineupCount ?? null;
   participant.source = source;
   participant.average = history.scores.length ? total / history.scores.length : null;
   participant.bestRound = history.scores.length ? Math.max(...history.scores.map((item) => Number(item.points) || 0)) : null;
@@ -223,7 +232,8 @@ async function syncPreviewCartola(url, body = {}) {
   for (const participant of linked) {
     try {
       const payload = await getCartolaTeamById(participant.cartolaTimeId, roundId, competition, { timeoutMs: 10000 });
-      const points = extractCartolaRoundPoints(payload, scoredAthletes, matches);
+      const snapshot = extractCartolaRoundSnapshot(payload, scoredAthletes, matches);
+      const points = snapshot?.points ?? null;
       if (points == null) {
         results.push({
           ok: false,
@@ -240,8 +250,15 @@ async function syncPreviewCartola(url, body = {}) {
       participant.cartolaOwnerName = team.nome_cartola || participant.cartolaOwnerName;
       participant.escudoUrl = team.url_escudo_png || team.url_escudo_svg || participant.escudoUrl;
       participant.patrimonio = payload.patrimonio ?? participant.patrimonio;
-      upsertPreviewHistory(participant, roundId, points, "cartola");
-      results.push({ ok: true, participantId: participant.id, cartolaTimeId: participant.cartolaTimeId, points });
+      upsertPreviewHistory(participant, roundId, points, "cartola", snapshot);
+      results.push({
+        ok: true,
+        participantId: participant.id,
+        cartolaTimeId: participant.cartolaTimeId,
+        points,
+        playedCount: snapshot?.playedCount ?? null,
+        lineupCount: snapshot?.lineupCount ?? null,
+      });
     } catch (e) {
       results.push({
         ok: false,
@@ -290,6 +307,8 @@ async function syncPreviewCartola(url, body = {}) {
         participantId: result.participantId,
         cartolaTimeId: result.cartolaTimeId,
         points: result.points,
+        playedCount: result.playedCount,
+        lineupCount: result.lineupCount,
       })),
       errors: errors.slice(0, 20),
       skipped: skipped.slice(0, 20),

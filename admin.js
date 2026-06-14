@@ -67,6 +67,13 @@ function displayOwnerName(participant) {
   return participant.cartolaOwnerName || participant.nome || "Participante";
 }
 
+function playedLabel(participant) {
+  const played = Number(participant.playedCount);
+  const total = Number(participant.lineupCount);
+  if (!Number.isFinite(played) || !Number.isFinite(total) || total <= 0) return "";
+  return `${played}/${total} jogaram`;
+}
+
 function currentLinkTarget() {
   return state.participants.find((participant) => participant.id === selectedParticipantId) || null;
 }
@@ -212,7 +219,8 @@ function renderParticipants() {
     .map((participant) => {
       const team = displayTeamName(participant);
       const owner = displayOwnerName(participant);
-      const ownerMeta = participant.cartolaTimeId ? owner : "Sem vínculo Cartola";
+      const progress = playedLabel(participant);
+      const ownerMeta = participant.cartolaTimeId ? owner + (progress ? ` · ${progress}` : "") : "Sem vínculo Cartola";
       const points = participant.currentRoundPoints ?? participant.pontos ?? participant.manualPoints ?? 0;
       const linkLabel = participant.cartolaTimeId ? "Trocar" : "Vincular";
       const activeClass = participant.id === selectedParticipantId ? " link-target-active" : "";

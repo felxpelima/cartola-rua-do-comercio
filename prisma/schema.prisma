@@ -79,6 +79,8 @@ model RoundScore {
   finalPoints      Float       @default(0)
   pontosCampeonato Float?
   patrimonio       Float?
+  playedCount      Int?
+  lineupCount      Int?
   source           String      @default("manual")
   raw              Json?
   syncedAt         DateTime?
