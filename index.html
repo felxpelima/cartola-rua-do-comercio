@@ -13,7 +13,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Anton&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/styles.css?v=social-hub" />
+  <link rel="stylesheet" href="/styles.css?v=round-rank-shot" />
 </head>
 <body>
   <div class="bg-grain"></div>
@@ -50,6 +50,11 @@
     </header>
 
     <main id="app">
+      <section class="round-mural mural-card" id="roundMural" hidden>
+        <span>Mensagem do organizador</span>
+        <strong id="roundMuralText"></strong>
+      </section>
+
       <nav class="tabbar" aria-label="Navegar pela liga">
         <button class="tab-btn active" type="button" data-tab="geral">Geral</button>
         <button class="tab-btn" type="button" data-tab="rodada">Rodada</button>
@@ -99,6 +104,6 @@
 
   <button id="backToTop" class="back-to-top" type="button" aria-label="Voltar ao topo" title="Voltar ao topo" disabled>&uarr;</button>
   <script src="/back-to-top.js?v=back-top"></script>
-  <script src="/landing.js?v=social-hub"></script>
+  <script src="/landing.js?v=round-rank-shot"></script>
 </body>
 </html>

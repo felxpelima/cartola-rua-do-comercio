@@ -8,7 +8,7 @@ function read(file) {
 
 test("public page exposes the IDs required by landing.js", () => {
   const html = read("index.html");
-  for (const id of ["titulo", "subtitulo", "total", "chipN", "chipValor", "prizes", "podium", "lista", "roundList", "badgeList", "highlights", "shareRoundBtn", "roundCardBtn", "roundShareNote", "backToTop"]) {
+  for (const id of ["titulo", "subtitulo", "total", "chipN", "chipValor", "prizes", "podium", "lista", "roundList", "badgeList", "highlights", "shareRoundBtn", "roundCardBtn", "roundShareNote", "roundMural", "roundMuralText", "backToTop"]) {
     assert.match(html, new RegExp(`id="${id}"`), `${id} must exist in index.html`);
   }
 });
@@ -59,7 +59,7 @@ test("admin sync log reports teams without released Cartola points", () => {
 
 test("participant page exposes the IDs required by participant.js", () => {
   const html = read("participant.html");
-  for (const id of ["profileApp", "profileAvatar", "profileRank", "profileName", "profileTeam", "profileTotal", "profileRound", "profileAverage", "profileBest", "profileBadges", "profileHistory", "shareProfileBtn", "shareProfileNote", "profileRivals", "lineupSummary", "lineupPitch", "benchList", "profileShareCard", "profileShareTitle", "profileShareText", "profileCardBtn", "backToTop"]) {
+  for (const id of ["profileApp", "profileAvatar", "profileRank", "profileName", "profileTeam", "profileTotal", "profileRound", "profileAverage", "profileBest", "profileBadges", "profileHistory", "shareProfileBtn", "shareProfileNote", "profileRivals", "lineupSummary", "lineupPitch", "benchList", "profileShareCard", "profileShareTitle", "profileShareText", "profileCardBtn", "scoutModal", "scoutCloseBtn", "scoutModalPhoto", "scoutModalName", "scoutModalMeta", "scoutModalPoints", "scoutModalStatus", "scoutModalNote", "scoutModalChips", "backToTop"]) {
     assert.match(html, new RegExp(`id="${id}"`), `${id} must exist in participant.html`);
   }
 });
@@ -74,8 +74,28 @@ test("public data contract exposes social hub fields", () => {
   assert.match(dataApi, /mural: text/);
 });
 
+test("public round card shares the full round ranking", () => {
+  const js = read("landing.js");
+  const css = read("styles.css");
+  assert.match(js, /function roundRankingShareText\(\)/);
+  assert.match(js, /currentState\?\.roundRanking/);
+  assert.match(js, /loadHtml2Canvas/);
+  assert.match(js, /buildRoundRankingShareElement/);
+  assert.match(js, /\/api\/image-proxy\?url=/);
+  assert.match(js, /ranking\.forEach/);
+  assert.match(js, /ranking-rodada\.png/);
+  assert.match(css, /\.share-shot/);
+  assert.match(css, /\.round-ranking-shot/);
+});
+
+test("image proxy is restricted to Cartola image hosts", () => {
+  const proxy = read("api/image-proxy.js");
+  assert.match(proxy, /glbimg\.com/);
+  assert.match(proxy, /contentType\.toLowerCase\(\)\.startsWith\("image\/"\)/);
+});
+
 test("source files do not contain common mojibake markers", () => {
-  const files = ["index.html", "admin.html", "participant.html", "landing.js", "admin.js", "participant.js", "README.md", "ROADMAP.md", "lib/db.js", "api/data.js", "prisma/schema.prisma"];
+  const files = ["index.html", "admin.html", "participant.html", "landing.js", "admin.js", "participant.js", "README.md", "ROADMAP.md", "lib/db.js", "api/data.js", "api/image-proxy.js", "prisma/schema.prisma"];
   for (const file of files) {
     assert.doesNotMatch(read(file), /Ã|Â|ð|�/, `${file} contains mojibake-looking text`);
   }

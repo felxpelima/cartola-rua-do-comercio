@@ -1,4 +1,5 @@
 const REDUCED = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const HTML2CANVAS_URL = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
 
 const fmtBRL = (value) => (Number(value) || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
 const fmtPts = (value) => (Number(value) || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -7,6 +8,7 @@ const $ = (id) => document.getElementById(id);
 
 let firstRender = true;
 let currentState = null;
+let html2canvasPromise = null;
 
 function hashHue(str) {
   let h = 0;
@@ -42,9 +44,26 @@ function monogram(nome) {
   return result.toUpperCase().slice(0, 2);
 }
 
-function avatarMarkup(participant, cls) {
+function proxiedImageUrl(url) {
+  if (!url) return "";
+  try {
+    const parsed = new URL(url, window.location.origin);
+    const host = parsed.hostname.toLowerCase();
+    if (host === "s2-cartola.glbimg.com" || host.endsWith(".glbimg.com")) {
+      return `/api/image-proxy?url=${encodeURIComponent(parsed.href)}`;
+    }
+  } catch (e) {
+    return url;
+  }
+  return url;
+}
+
+function avatarMarkup(participant, cls, options = {}) {
   if (participant.escudoUrl) {
-    return `<span class="${cls} image-avatar"><img src="${esc(participant.escudoUrl)}" alt="" loading="lazy" /></span>`;
+    const src = options.proxyImages ? proxiedImageUrl(participant.escudoUrl) : participant.escudoUrl;
+    const loading = options.eager ? "eager" : "lazy";
+    const cors = options.proxyImages ? ' crossorigin="anonymous"' : "";
+    return `<span class="${cls} image-avatar"><img src="${esc(src)}" alt="" loading="${loading}"${cors} /></span>`;
   }
   const name = teamName(participant);
   return `<span class="${cls}" style="${avatarBg(name)}">${esc(monogram(name))}</span>`;
@@ -188,13 +207,14 @@ function renderRanking(participants) {
   listEl.innerHTML = rest.map((participant, index) => rankingRow(participant, restStart + index + 1, maxPts, index)).join("");
 }
 
-function rankingRow(participant, rank, maxPts, index = 0) {
+function rankingRow(participant, rank, maxPts, index = 0, options = {}) {
   const width = ((Number(participant.pontos) || 0) / maxPts) * 100;
+  const rowClass = options.share ? "row share-row" : "row";
   return `
-    <div class="row" style="animation-delay:${index * 35}ms">
+    <div class="${rowClass}" style="animation-delay:${index * 35}ms">
       <span class="rank">${rank}</span>
       <a class="row-profile" href="${profileHref(participant)}">
-        ${avatarMarkup(participant, "row-avatar")}
+        ${avatarMarkup(participant, "row-avatar", { proxyImages: options.proxyImages, eager: options.eagerImages })}
         <div class="row-mid">
           <div class="name-line">
             <span class="name">${esc(teamName(participant))}</span>
@@ -296,6 +316,16 @@ function roundShareText() {
   return [`Resenha da ${cfg.titulo || "Liga Rua do Comercio"}`, ...lines].join("\n");
 }
 
+function roundRankingShareText() {
+  const cfg = currentState?.config || {};
+  const roundName = currentState?.currentRound?.nome || "Rodada atual";
+  const ranking = Array.isArray(currentState?.roundRanking) ? currentState.roundRanking : [];
+  const lines = ranking
+    .slice(0, 10)
+    .map((participant, index) => `#${participant.roundRank || index + 1} ${teamName(participant)} - ${fmtPts(participant.pontos)} pts`);
+  return [`Ranking da ${roundName} - ${cfg.titulo || "Liga Rua do Comercio"}`, ...lines].join("\n");
+}
+
 function openWhatsApp(text) {
   const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
   window.open(url, "_blank", "noopener,noreferrer");
@@ -308,55 +338,268 @@ async function shareRound() {
 }
 
 async function downloadRoundCard() {
-  const canvas = document.createElement("canvas");
-  canvas.width = 1080;
-  canvas.height = 1350;
-  const ctx = canvas.getContext("2d");
-  const cfg = currentState?.config || {};
-  const highlights = Array.isArray(currentState?.highlights) ? currentState.highlights.slice(0, 5) : [];
-  const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-  gradient.addColorStop(0, "#07150e");
-  gradient.addColorStop(1, "#040d09");
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = "#f4cd6b";
-  ctx.font = "700 44px Arial";
-  ctx.fillText(cfg.titulo || "Liga Rua do Comercio", 72, 116);
-  ctx.fillStyle = "#eef5f0";
-  ctx.font = "900 92px Arial";
-  ctx.fillText("Resenha", 72, 220);
-  ctx.font = "700 42px Arial";
-  highlights.forEach((item, index) => {
-    const y = 340 + index * 172;
-    ctx.fillStyle = "#2fe08c";
-    ctx.fillText(item.label || "Destaque", 72, y);
-    ctx.fillStyle = "#eef5f0";
-    ctx.fillText(item.title || "", 72, y + 54);
-    ctx.fillStyle = "#9bb3a6";
-    ctx.font = "500 32px Arial";
-    wrapCanvasText(ctx, item.body || "", 72, y + 100, 920, 38);
-    ctx.font = "700 42px Arial";
-  });
-  ctx.fillStyle = "#9bb3a6";
-  ctx.font = "500 28px Arial";
-  ctx.fillText("cartola-rua-do-comercio", 72, 1280);
-  await shareCanvasOrWhatsApp(canvas, "resenha-rodada.png", "Card da rodada", roundShareText(), $("roundShareNote"));
+  const ranking = Array.isArray(currentState?.roundRanking) ? currentState.roundRanking : [];
+  if (!ranking.length) {
+    $("roundShareNote").textContent = "A rodada ainda nao tem ranking para gerar o card.";
+    return;
+  }
+
+  const noteEl = $("roundShareNote");
+  noteEl.textContent = "Montando print da tabela...";
+
+  try {
+    const canvas = await renderRoundRankingScreenshot(ranking);
+    await shareCanvasOrWhatsApp(canvas, "ranking-rodada.png", "Ranking da rodada", roundRankingShareText(), noteEl);
+    return;
+  } catch (e) {
+    console.warn("Nao foi possivel gerar o print da tabela.", e);
+    noteEl.textContent = "Nao consegui gerar o print bonito. Vou usar o card simples.";
+  }
+
+  const canvas = renderRoundRankingFallbackCanvas(ranking);
+  await shareCanvasOrWhatsApp(canvas, "ranking-rodada.png", "Ranking da rodada", roundRankingShareText(), noteEl);
 }
 
-function wrapCanvasText(ctx, text, x, y, maxWidth, lineHeight) {
-  const words = String(text).split(/\s+/);
-  let line = "";
-  for (const word of words) {
-    const testLine = line ? `${line} ${word}` : word;
-    if (ctx.measureText(testLine).width > maxWidth && line) {
-      ctx.fillText(line, x, y);
-      y += lineHeight;
-      line = word;
-    } else {
-      line = testLine;
-    }
+async function renderRoundRankingScreenshot(ranking) {
+  const html2canvas = await loadHtml2Canvas();
+  const shot = buildRoundRankingShareElement(ranking);
+  document.body.appendChild(shot);
+
+  try {
+    if (document.fonts && document.fonts.ready) await document.fonts.ready;
+    await waitForImages(shot);
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    return await html2canvas(shot, {
+      backgroundColor: null,
+      scale: Math.min(2, window.devicePixelRatio || 2),
+      useCORS: true,
+      allowTaint: false,
+      logging: false,
+      width: shot.offsetWidth,
+      height: shot.scrollHeight,
+      windowWidth: shot.offsetWidth,
+      windowHeight: shot.scrollHeight,
+      scrollX: 0,
+      scrollY: 0,
+    });
+  } finally {
+    shot.remove();
   }
-  if (line) ctx.fillText(line, x, y);
+}
+
+function buildRoundRankingShareElement(ranking) {
+  const cfg = currentState?.config || {};
+  const roundName = currentState?.currentRound?.nome || "Rodada atual";
+  const updatedAt = currentState?.lastSync?.finishedAt || currentState?.lastSync?.startedAt || "";
+  const maxPts = Math.max(1, ...ranking.map((participant) => Number(participant.pontos) || 0));
+  const shot = document.createElement("section");
+  shot.className = "share-shot round-ranking-shot";
+  shot.setAttribute("aria-hidden", "true");
+  shot.innerHTML = `
+    <div class="share-shot-head">
+      <span class="share-shot-kicker">${esc(cfg.titulo || "Liga Rua do Comercio")}</span>
+      <strong>Ranking da rodada</strong>
+      <div class="share-shot-meta">
+        <span>${esc(roundName)}</span>
+        <span>${updatedAt ? `Atualizado ${esc(formatCardDate(updatedAt))}` : `${ranking.length} participantes`}</span>
+      </div>
+    </div>
+    <div class="share-shot-list">
+      ${ranking
+        .map((participant, index) =>
+          rankingRow(participant, participant.roundRank || index + 1, maxPts, index, {
+            share: true,
+            proxyImages: true,
+            eagerImages: true,
+          })
+        )
+        .join("")}
+    </div>
+    <div class="share-shot-foot">
+      <span>Rua do Comercio</span>
+      <strong>Cartola Copa 2026</strong>
+    </div>`;
+  return shot;
+}
+
+function loadHtml2Canvas() {
+  if (window.html2canvas) return Promise.resolve(window.html2canvas);
+  if (!html2canvasPromise) {
+    html2canvasPromise = new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = HTML2CANVAS_URL;
+      script.async = true;
+      script.onload = () => (window.html2canvas ? resolve(window.html2canvas) : reject(new Error("html2canvas indisponivel")));
+      script.onerror = () => reject(new Error("Nao foi possivel carregar html2canvas"));
+      document.head.appendChild(script);
+    });
+  }
+  return html2canvasPromise;
+}
+
+function waitForImages(root) {
+  const images = Array.from(root.querySelectorAll("img"));
+  return Promise.all(
+    images.map(
+      (image) =>
+        new Promise((resolve) => {
+          if (image.complete && image.naturalWidth > 0) {
+            resolve();
+            return;
+          }
+          const done = () => resolve();
+          image.addEventListener("load", done, { once: true });
+          image.addEventListener("error", done, { once: true });
+          setTimeout(done, 3500);
+        })
+    )
+  );
+}
+
+function renderRoundRankingFallbackCanvas(ranking) {
+  const canvas = document.createElement("canvas");
+  const width = 900;
+  const rowHeight = 106;
+  const headerHeight = 190;
+  const footerHeight = 58;
+  const height = headerHeight + ranking.length * rowHeight + footerHeight;
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  const cfg = currentState?.config || {};
+  const roundName = currentState?.currentRound?.nome || "Rodada atual";
+  const updatedAt = currentState?.lastSync?.finishedAt || currentState?.lastSync?.startedAt || "";
+
+  ctx.fillStyle = "#f6f8f7";
+  ctx.fillRect(0, 0, width, height);
+
+  const headerGradient = ctx.createLinearGradient(0, 0, width, headerHeight);
+  headerGradient.addColorStop(0, "#08351f");
+  headerGradient.addColorStop(1, "#16a34a");
+  ctx.fillStyle = headerGradient;
+  ctx.fillRect(0, 0, width, headerHeight);
+
+  ctx.fillStyle = "rgba(255,255,255,0.16)";
+  ctx.beginPath();
+  ctx.arc(790, 36, 190, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = "#f4cd6b";
+  ctx.font = "800 28px Arial";
+  ctx.fillText(cfg.titulo || "Liga Rua do Comercio", 42, 54);
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "900 58px Arial";
+  ctx.fillText("Ranking da rodada", 42, 115);
+  ctx.font = "700 28px Arial";
+  ctx.fillText(roundName, 42, 154);
+
+  ctx.fillStyle = "rgba(255,255,255,0.78)";
+  ctx.font = "600 20px Arial";
+  const updateLabel = updatedAt ? `Atualizado ${formatCardDate(updatedAt)}` : `${ranking.length} participantes`;
+  ctx.fillText(updateLabel, 620, 154);
+
+  ranking.forEach((participant, index) => drawRoundRankingRow(ctx, participant, index, 0, headerHeight + index * rowHeight, width, rowHeight));
+
+  ctx.fillStyle = "#e9efec";
+  ctx.fillRect(0, height - footerHeight, width, footerHeight);
+  ctx.fillStyle = "#607268";
+  ctx.font = "700 20px Arial";
+  ctx.fillText("Compartilhado pela Liga Rua do Comercio", 42, height - 22);
+  ctx.textAlign = "right";
+  ctx.fillText("Cartola Copa 2026", width - 42, height - 22);
+  ctx.textAlign = "left";
+
+  return canvas;
+}
+
+function formatCardDate(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+}
+
+function drawRoundRankingRow(ctx, participant, index, x, y, width, height) {
+  const rank = participant.roundRank || index + 1;
+  const top = y;
+  const highlighted = index === 0;
+
+  ctx.fillStyle = highlighted ? "#dff7e9" : "#ffffff";
+  ctx.fillRect(x, top, width, height);
+  ctx.fillStyle = "#e6ece8";
+  ctx.fillRect(0, top + height - 1, width, 1);
+
+  ctx.fillStyle = highlighted ? "#16a34a" : "#8ca09a";
+  ctx.font = "800 24px Arial";
+  ctx.textAlign = "center";
+  ctx.fillText(String(rank), 34, top + 48);
+  const delta = Number(participant.delta) || 0;
+  ctx.font = "800 16px Arial";
+  ctx.fillStyle = delta > 0 ? "#16a34a" : delta < 0 ? "#e05252" : "#9aa8a1";
+  ctx.fillText(delta > 0 ? `+${delta}` : delta < 0 ? String(delta) : "=", 34, top + 72);
+  ctx.textAlign = "left";
+
+  drawCardAvatar(ctx, participant, 82, top + 53, 34);
+
+  const nameX = 132;
+  ctx.fillStyle = "#18352b";
+  ctx.font = "900 25px Arial";
+  drawTextFit(ctx, teamName(participant), nameX, top + 34, 360);
+  ctx.fillStyle = "#65776f";
+  ctx.font = "600 20px Arial";
+  drawTextFit(ctx, ownerName(participant), nameX, top + 60, 330);
+
+  const captain = participant.lineup?.captainName || "";
+  if (captain) {
+    ctx.fillStyle = "#8ba49a";
+    ctx.font = "600 18px Arial";
+    drawTextFit(ctx, `c ${captain}`, nameX, top + 86, 330);
+  }
+
+  const played = playedLabel(participant);
+  ctx.textAlign = "right";
+  ctx.fillStyle = "#17342a";
+  ctx.font = "900 28px Arial";
+  ctx.fillText(fmtPts(participant.pontos), width - 40, top + 38);
+  ctx.fillStyle = "#697b74";
+  ctx.font = "700 19px Arial";
+  ctx.fillText(`${fmtPts(participant.totalPoints ?? participant.pontos)} geral`, width - 40, top + 64);
+  ctx.fillStyle = "#2584c7";
+  ctx.font = "900 20px Arial";
+  ctx.fillText(played || "-", width - 40, top + 90);
+  ctx.textAlign = "left";
+}
+
+function drawCardAvatar(ctx, participant, cx, cy, radius) {
+  const hue = hashHue(teamName(participant));
+  const gradient = ctx.createLinearGradient(cx - radius, cy - radius, cx + radius, cy + radius);
+  gradient.addColorStop(0, `hsl(${hue} 68% 58%)`);
+  gradient.addColorStop(1, `hsl(${(hue + 42) % 360} 72% 38%)`);
+  ctx.fillStyle = gradient;
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "#d9e1dd";
+  ctx.lineWidth = 4;
+  ctx.stroke();
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "900 24px Arial";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(monogram(teamName(participant)), cx, cy + 1);
+  ctx.textAlign = "left";
+  ctx.textBaseline = "alphabetic";
+}
+
+function drawTextFit(ctx, text, x, y, maxWidth) {
+  let output = String(text || "");
+  if (ctx.measureText(output).width <= maxWidth) {
+    ctx.fillText(output, x, y);
+    return;
+  }
+  while (output.length > 1 && ctx.measureText(`${output}...`).width > maxWidth) {
+    output = output.slice(0, -1);
+  }
+  ctx.fillText(`${output}...`, x, y);
 }
 
 function downloadCanvas(canvas, filename) {
@@ -396,11 +639,15 @@ function render(state) {
   currentState = state;
   const config = state.config || {};
   const participants = Array.isArray(state.participants) ? state.participants : [];
+  const muralText = String(state.mural || config.mural || "").trim();
 
   $("titulo").textContent = config.titulo || "Liga Rua do Comercio";
   $("subtitulo").textContent = config.subtitulo || "Copa do Mundo 2026";
   $("footer").innerHTML = 'Atualizado pelo organizador <span class="dot">-</span> ' + esc(config.titulo || "");
   document.title = (config.titulo || "Liga Rua do Comercio") + " · " + (config.subtitulo || "");
+
+  $("roundMural").hidden = !muralText;
+  $("roundMuralText").textContent = muralText;
 
   renderPrizes(config, participants);
   renderRanking(participants);

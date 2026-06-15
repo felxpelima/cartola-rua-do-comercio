@@ -163,7 +163,7 @@ test("calculateCartolaPartialPoints applies luxury reserve when it beats lowest 
     atletas: {
       10: { pontuacao: 2, entrou_em_campo: true },
       20: { pontuacao: 8, entrou_em_campo: true },
-      40: { pontuacao: 5, entrou_em_campo: true },
+      40: { pontuacao: 5, entrou_em_campo: true, scout: { G: 1, FS: 2 } },
     },
   };
 
@@ -242,7 +242,7 @@ test("normalizeLineupSnapshot exposes starters, reserves, captain and partial st
     atletas: {
       10: { pontuacao: 4, entrou_em_campo: true },
       20: { pontuacao: 8, entrou_em_campo: true },
-      40: { pontuacao: 5, entrou_em_campo: true },
+      40: { pontuacao: 5, entrou_em_campo: true, scout: { G: 1, FS: 2 } },
     },
   };
   const matchesPayload = {
@@ -259,6 +259,7 @@ test("normalizeLineupSnapshot exposes starters, reserves, captain and partial st
   assert.equal(lineup.starters.find((athlete) => athlete.name === "Zagueiro").status, "empty");
   assert.equal(lineup.starters.find((athlete) => athlete.name === "Atacante").status, "scored");
   assert.equal(lineup.starters.find((athlete) => athlete.name === "Atacante").photoUrl, "https://s.sde.globo.com/media/person_role/2026/05/19/photo_220x220_abc.png");
+  assert.deepEqual(lineup.starters.find((athlete) => athlete.name === "Atacante").scout, { G: 1, FS: 2 });
   assert.equal(lineup.playedCount, 3);
   assert.equal(lineup.lineupCount, 4);
 });
@@ -277,7 +278,7 @@ test("stored lineup snapshot keeps individual scored athlete points", () => {
     rodada: 1,
     atletas: {
       10: { pontuacao: 4.4, entrou_em_campo: true },
-      20: { pontuacao: 8.1, entrou_em_campo: true },
+      20: { pontuacao: 8.1, entrou_em_campo: true, scout: { A: 1, DS: 2 } },
       999: { pontuacao: 20, entrou_em_campo: true },
     },
   };
@@ -293,6 +294,7 @@ test("stored lineup snapshot keeps individual scored athlete points", () => {
   const lineup = normalizeStoredLineupSnapshot(raw);
   assert.equal(lineup.starters.find((athlete) => athlete.name === "Goleiro").points, 4.4);
   assert.equal(lineup.starters.find((athlete) => athlete.name === "Capitao").points, 8.1);
+  assert.deepEqual(lineup.starters.find((athlete) => athlete.name === "Capitao").scout, { A: 1, DS: 2 });
   assert.equal(lineup.starters.find((athlete) => athlete.name === "Sem Pontos").points, null);
   assert.equal(lineup.starters.find((athlete) => athlete.name === "Sem Pontos").status, "empty");
 });

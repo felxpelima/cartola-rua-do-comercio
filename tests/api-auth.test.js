@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import cartolaSearchHandler from "../api/cartola-search.js";
 import dataHandler from "../api/data.js";
+import imageProxyHandler from "../api/image-proxy.js";
 import syncCartolaHandler from "../api/sync-cartola.js";
 
 function mockRes() {
@@ -50,4 +51,14 @@ test("admin APIs return 405 for unsupported methods", async () => {
   const dataRes = mockRes();
   await dataHandler({ method: "PUT", headers: {}, query: {} }, dataRes);
   assert.equal(dataRes.statusCode, 405);
+});
+
+test("image proxy only accepts GET and allowed image hosts", async () => {
+  const methodRes = mockRes();
+  await imageProxyHandler({ method: "POST", query: {} }, methodRes);
+  assert.equal(methodRes.statusCode, 405);
+
+  const hostRes = mockRes();
+  await imageProxyHandler({ method: "GET", query: { url: "https://example.com/a.png" } }, hostRes);
+  assert.equal(hostRes.statusCode, 400);
 });

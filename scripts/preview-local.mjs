@@ -216,6 +216,52 @@ function one(value) {
   return Array.isArray(value) ? value[0] : value;
 }
 
+function allowedImageUrl(value) {
+  try {
+    const target = new URL(String(value || ""));
+    if (!["http:", "https:"].includes(target.protocol)) return null;
+    const host = target.hostname.toLowerCase();
+    return host === "glbimg.com" || host === "s2-cartola.glbimg.com" || host.endsWith(".glbimg.com") ? target : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+async function proxyImage(res, value) {
+  const target = allowedImageUrl(value);
+  if (!target) {
+    json(res, 400, { error: "URL de imagem invalida" });
+    return;
+  }
+
+  try {
+    const upstream = await fetch(target.href, {
+      headers: {
+        "User-Agent": "cartola-rua-do-comercio-preview/1.0",
+        Accept: "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+      },
+    });
+    if (!upstream.ok) {
+      json(res, upstream.status, { error: "Imagem nao encontrada" });
+      return;
+    }
+    const contentType = upstream.headers.get("content-type") || "image/png";
+    if (!contentType.toLowerCase().startsWith("image/")) {
+      json(res, 415, { error: "URL nao aponta para uma imagem" });
+      return;
+    }
+    const buffer = Buffer.from(await upstream.arrayBuffer());
+    res.writeHead(200, {
+      "Content-Type": contentType,
+      "Cache-Control": "public, max-age=86400",
+      "Access-Control-Allow-Origin": "*",
+    });
+    res.end(buffer);
+  } catch (e) {
+    json(res, 502, { error: "Nao foi possivel carregar a imagem" });
+  }
+}
+
 function roundFromRequest(url, body, status) {
   const requested = Number(url.searchParams.get("roundId") || url.searchParams.get("round") || (body && body.roundId));
   if (Number.isFinite(requested) && requested > 0) return Math.trunc(requested);
@@ -385,6 +431,11 @@ async function syncPreviewCartola(url, body = {}) {
 }
 
 async function handleApi(req, res, url) {
+  if (url.pathname === "/api/image-proxy" && req.method === "GET") {
+    await proxyImage(res, url.searchParams.get("url"));
+    return true;
+  }
+
   if (url.pathname === "/api/data" && req.method === "GET") {
     refreshDerived();
     json(res, 200, state);

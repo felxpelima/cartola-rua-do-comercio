@@ -4,6 +4,51 @@ const $ = (id) => document.getElementById(id);
 
 let currentParticipant = null;
 let currentState = null;
+let currentLineupAthletes = new Map();
+
+const SCOUT_META = {
+  G: { label: "Gol", tone: "positive" },
+  A: { label: "Assistencia", tone: "positive" },
+  DS: { label: "Desarme", tone: "positive" },
+  DE: { label: "Defesa", tone: "positive" },
+  DP: { label: "Defesa de penalti", tone: "positive" },
+  SG: { label: "Saldo de gol", tone: "positive" },
+  FS: { label: "Falta sofrida", tone: "positive" },
+  FF: { label: "Finalizacao fora", tone: "positive" },
+  FD: { label: "Finalizacao defendida", tone: "positive" },
+  FT: { label: "Finalizacao na trave", tone: "positive" },
+  V: { label: "Vitoria tecnico", tone: "positive" },
+  FC: { label: "Falta cometida", tone: "negative" },
+  CA: { label: "Cartao amarelo", tone: "negative" },
+  CV: { label: "Cartao vermelho", tone: "negative" },
+  GC: { label: "Gol contra", tone: "negative" },
+  GS: { label: "Gol sofrido", tone: "negative" },
+  PP: { label: "Penalti perdido", tone: "negative" },
+  PE: { label: "Passe errado", tone: "negative" },
+  I: { label: "Impedimento", tone: "negative" },
+};
+
+const SCOUT_PLURAL = {
+  G: "Gols",
+  A: "Assistencias",
+  DS: "Desarmes",
+  DE: "Defesas",
+  DP: "Defesas de penalti",
+  SG: "Saldos de gol",
+  FS: "Faltas sofridas",
+  FF: "Finalizacoes fora",
+  FD: "Finalizacoes defendidas",
+  FT: "Finalizacoes na trave",
+  V: "Vitorias tecnico",
+  FC: "Faltas cometidas",
+  CA: "Cartoes amarelos",
+  CV: "Cartoes vermelhos",
+  GC: "Gols contra",
+  GS: "Gols sofridos",
+  PP: "Penaltis perdidos",
+  PE: "Passes errados",
+  I: "Impedimentos",
+};
 
 function hashHue(str) {
   let h = 0;
@@ -120,29 +165,86 @@ function statusLabel(status) {
   return "aguardando";
 }
 
+function athleteKey(athlete) {
+  return String(athlete.id ?? `${athlete.kind || "athlete"}-${athlete.name || "sem-nome"}`);
+}
+
+function scoutValue(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return "0";
+  return Number.isInteger(number) ? String(number) : number.toLocaleString("pt-BR", { maximumFractionDigits: 1 });
+}
+
+function scoutLabel(entry) {
+  return Math.abs(Number(entry.value)) === 1 ? entry.label : SCOUT_PLURAL[entry.code] || `${entry.label}s`;
+}
+
+function scoutPhrase(entry) {
+  return `${scoutValue(entry.value)} ${scoutLabel(entry).toLowerCase()}`;
+}
+
+function scoutEntries(athlete) {
+  const scout = athlete?.scout && typeof athlete.scout === "object" ? athlete.scout : {};
+  return Object.entries(scout)
+    .map(([code, value]) => {
+      const number = Number(value);
+      if (!Number.isFinite(number) || number === 0) return null;
+      const meta = SCOUT_META[code] || { label: code, tone: "neutral" };
+      return { code, value: number, label: meta.label, tone: meta.tone };
+    })
+    .filter(Boolean)
+    .sort((a, b) => {
+      const toneWeight = { positive: 0, neutral: 1, negative: 2 };
+      return (toneWeight[a.tone] ?? 1) - (toneWeight[b.tone] ?? 1) || Math.abs(b.value) - Math.abs(a.value) || a.code.localeCompare(b.code);
+    });
+}
+
+function scoutMiniChips(athlete) {
+  const entries = scoutEntries(athlete).slice(0, 3);
+  if (!entries.length) return "";
+  return `<span class="athlete-scouts">${entries
+    .map((entry) => `<span class="scout-mini tone-${esc(entry.tone)}">${esc(scoutValue(entry.value))}${esc(entry.code)}</span>`)
+    .join("")}</span>`;
+}
+
+function scoutSentence(athlete, entries) {
+  if (athlete.status !== "scored") return "Ainda aguardando os scouts oficiais desse jogador.";
+  if (!entries.length) return "O Cartola registrou a pontuacao, mas nao enviou scouts detalhados para esse jogador.";
+  const positives = entries.filter((entry) => entry.tone === "positive").slice(0, 3);
+  const negatives = entries.filter((entry) => entry.tone === "negative").slice(0, 2);
+  const positiveText = positives.map(scoutPhrase).join(", ");
+  const negativeText = negatives.map(scoutPhrase).join(", ");
+  if (positiveText && negativeText) return `Pontuou por ${positiveText}, com desconto por ${negativeText}.`;
+  if (positiveText) return `Pontuou principalmente por ${positiveText}.`;
+  return `A pontuacao foi afetada por ${negativeText}.`;
+}
+
 function athleteCard(athlete) {
   const tags = [];
   if (athlete.isCaptain) tags.push("capitao");
   if (athlete.isLuxuryReserve) tags.push("luxo");
   tags.push(statusLabel(athlete.status));
+  const key = athleteKey(athlete);
   const photo = athlete.photoUrl
     ? `<span class="athlete-photo image" data-initials="${esc(monogram(athlete.name))}" style="background:${avatarBg(athlete.name)}"><img src="${esc(athlete.photoUrl)}" alt="" loading="lazy" /></span>`
     : `<span class="athlete-photo" style="background:${avatarBg(athlete.name)}">${esc(monogram(athlete.name))}</span>`;
   return `
-    <div class="athlete-card status-${esc(athlete.status || "waiting")}">
+    <button class="athlete-card status-${esc(athlete.status || "waiting")}" type="button" data-athlete-id="${esc(key)}" aria-label="Ver scouts de ${esc(athlete.name)}">
       ${photo}
       <div class="athlete-main">
         <span class="athlete-pos">${esc(athlete.positionAbbr || "POS")}${athlete.club?.abbr ? ` · ${esc(athlete.club.abbr)}` : ""}</span>
         <strong>${esc(athlete.name)}</strong>
+        ${scoutMiniChips(athlete)}
         <em>${tags.map(esc).join(" · ")}</em>
       </div>
       <b>${athlete.points == null ? "-" : fmtPts(athlete.points)}</b>
-    </div>`;
+    </button>`;
 }
 
 function renderLineup(participant) {
   const lineup = participant.lineup;
   if (!lineup || (!Array.isArray(lineup.starters) && !Array.isArray(lineup.reserves))) {
+    currentLineupAthletes = new Map();
     $("lineupSummary").innerHTML = '<div class="empty compact"><p>Escalacao ainda nao disponivel para esta rodada.</p></div>';
     $("lineupPitch").innerHTML = "";
     $("benchList").innerHTML = "";
@@ -151,6 +253,7 @@ function renderLineup(participant) {
 
   const starters = Array.isArray(lineup.starters) ? lineup.starters : [];
   const reserves = Array.isArray(lineup.reserves) ? lineup.reserves : [];
+  currentLineupAthletes = new Map([...starters, ...reserves].map((athlete) => [athleteKey(athlete), athlete]));
   const played = Number(lineup.playedCount);
   const total = Number(lineup.lineupCount);
   const progress = Number.isFinite(played) && Number.isFinite(total) && total > 0 ? `${played}/${total} jogadores pontuaram` : "Aguardando pontuacao";
@@ -184,6 +287,62 @@ function renderLineup(participant) {
   $("benchList").innerHTML = reserves.length
     ? `<div class="bench-title">Reservas</div><div class="bench-grid">${reserves.map(athleteCard).join("")}</div>`
     : "";
+}
+
+function renderScoutPhoto(athlete) {
+  const initials = monogram(athlete.name);
+  const bg = avatarBg(athlete.name);
+  const holder = $("scoutModalPhoto");
+  holder.className = athlete.photoUrl ? "scout-modal-photo image" : "scout-modal-photo";
+  holder.dataset.initials = initials;
+  holder.style.background = bg;
+  if (athlete.photoUrl) {
+    holder.innerHTML = `<img src="${esc(athlete.photoUrl)}" alt="" loading="lazy" />`;
+    return;
+  }
+  holder.textContent = initials;
+}
+
+function openScoutModal(athleteId) {
+  const athlete = currentLineupAthletes.get(String(athleteId));
+  if (!athlete) return;
+  const entries = scoutEntries(athlete);
+  const modal = $("scoutModal");
+  renderScoutPhoto(athlete);
+  $("scoutModalName").textContent = athlete.name || "Atleta";
+  $("scoutModalMeta").textContent = `${athlete.position || athlete.positionAbbr || "Posicao"}${athlete.club?.abbr ? ` - ${athlete.club.abbr}` : ""}`;
+  $("scoutModalStatus").textContent = [athlete.isCaptain ? "capitao" : "", athlete.isLuxuryReserve ? "reserva de luxo" : "", statusLabel(athlete.status)].filter(Boolean).join(" - ");
+  $("scoutModalPoints").textContent = athlete.points == null ? "-" : fmtPts(athlete.points);
+  $("scoutModalNote").textContent = scoutSentence(athlete, entries);
+  $("scoutModalChips").innerHTML = entries.length
+    ? entries
+        .map(
+          (entry) => `
+            <div class="scout-chip tone-${esc(entry.tone)}">
+              <strong>${esc(scoutValue(entry.value))}${esc(entry.code)}</strong>
+              <span>${esc(scoutLabel(entry))}</span>
+            </div>`
+        )
+        .join("")
+    : '<div class="empty compact"><p>Sem scouts detalhados para este jogador.</p></div>';
+  setScoutModalState(true);
+  $("scoutCloseBtn").focus();
+}
+
+function setScoutModalState(open) {
+  const modal = $("scoutModal");
+  modal.classList.toggle("is-open", open);
+  modal.setAttribute("aria-hidden", open ? "false" : "true");
+  modal.style.opacity = open ? "1" : "0";
+  modal.style.visibility = open ? "visible" : "hidden";
+  modal.style.pointerEvents = open ? "auto" : "none";
+  document.body.classList.toggle("modal-open", open);
+}
+
+function closeScoutModal() {
+  const modal = $("scoutModal");
+  setScoutModalState(false);
+  if (modal.contains(document.activeElement)) document.activeElement.blur();
 }
 
 function shareText(participant, state) {
@@ -336,12 +495,28 @@ async function shareCanvasOrWhatsApp(canvas, filename, title, text, noteEl) {
 
 $("shareProfileBtn").addEventListener("click", shareProfile);
 $("profileCardBtn").addEventListener("click", downloadProfileCard);
+$("scoutCloseBtn").addEventListener("click", closeScoutModal);
+$("scoutModal").addEventListener("click", (event) => {
+  if (event.target.id === "scoutModal") closeScoutModal();
+});
+document.addEventListener("click", (event) => {
+  const target = event.target instanceof Element ? event.target : null;
+  const card = target?.closest(".athlete-card[data-athlete-id]");
+  if (card) {
+    event.preventDefault();
+    openScoutModal(card.dataset.athleteId);
+  }
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && $("scoutModal").classList.contains("is-open")) closeScoutModal();
+});
 document.addEventListener(
   "error",
   (event) => {
     const image = event.target;
-    if (!(image instanceof HTMLImageElement) || !image.closest(".athlete-photo")) return;
-    const holder = image.closest(".athlete-photo");
+    if (!(image instanceof HTMLImageElement)) return;
+    const holder = image.closest(".athlete-photo, .scout-modal-photo");
+    if (!holder) return;
     holder.classList.add("fallback");
     holder.textContent = holder.dataset.initials || "?";
   },
