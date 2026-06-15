@@ -84,6 +84,7 @@ test("public round card shares the full round ranking", () => {
   assert.match(js, /\/api\/image-proxy\?url=/);
   assert.match(js, /ranking\.forEach/);
   assert.match(js, /ranking-rodada\.png/);
+  assert.doesNotMatch(js, /roundRankingShareText[\s\S]*slice\(0,\s*10\)/);
   assert.match(css, /\.share-shot/);
   assert.match(css, /\.round-ranking-shot/);
 });

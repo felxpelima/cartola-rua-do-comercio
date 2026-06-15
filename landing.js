@@ -321,7 +321,6 @@ function roundRankingShareText() {
   const roundName = currentState?.currentRound?.nome || "Rodada atual";
   const ranking = Array.isArray(currentState?.roundRanking) ? currentState.roundRanking : [];
   const lines = ranking
-    .slice(0, 10)
     .map((participant, index) => `#${participant.roundRank || index + 1} ${teamName(participant)} - ${fmtPts(participant.pontos)} pts`);
   return [`Ranking da ${roundName} - ${cfg.titulo || "Liga Rua do Comercio"}`, ...lines].join("\n");
 }
