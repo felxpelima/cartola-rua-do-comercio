@@ -17,6 +17,7 @@ const fixture = {
   lastSync: { status: "success", finishedAt: "2026-06-10T18:00:00.000Z" },
   participants: [{ id: "p1", nome: "UGO Comércio FC", pontos: 92.13, badges: [{ label: "Líder da Rua" }] }],
   roundRanking: [{ id: "p1", nome: "UGO Comércio FC", pontos: 92.13, roundRank: 1 }],
+  mitadas: [{ roundId: 1, roundName: "Rodada 1", participantId: "p1", nome: "UGO Comercio FC", points: 92.13, mitadasCount: 1 }],
 };
 
 const mime = {

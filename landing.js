@@ -279,6 +279,56 @@ function renderHighlights(highlights) {
     .join("");
 }
 
+function mitadaLine(item) {
+  const count = Number(item.mitadasCount) || 1;
+  const played = playedLabel(item);
+  if (item.runnerUp && Number(item.runnerUp.diff) > 0) {
+    return `+${fmtPts(item.runnerUp.diff)} sobre ${teamName(item.runnerUp)}`;
+  }
+  if (item.runnerUp) return `Empatou com ${teamName(item.runnerUp)}`;
+  if (played) return `${played} jogadores pontuaram`;
+  return count > 1 ? `${count} mitadas na temporada` : "Mito da rodada";
+}
+
+function scoreSourceLabel(source) {
+  if (source === "manual") return "manual";
+  if (source === "mixed") return "ajustada";
+  if (source === "cartola") return "Cartola";
+  return "";
+}
+
+function renderMitadas(mitadas) {
+  const list = Array.isArray(mitadas) ? mitadas : [];
+  if (!list.length) {
+    $("mitadasList").innerHTML = '<div class="empty compact"><p>As mitadas aparecem depois que uma rodada tiver pontuacao salva.</p></div>';
+    return;
+  }
+
+  $("mitadasList").innerHTML = list
+    .map(
+      (item, index) => `
+      <a class="mitada-card" href="/participant?id=${encodeURIComponent(item.participantId)}" style="animation-delay:${index * 45}ms">
+        <div class="mitada-round">
+          <span>${esc(item.roundName || `Rodada ${item.roundId}`)}</span>
+          <b>${Number(item.mitadasCount) > 1 ? `${Number(item.mitadasCount)}x` : "Mito"}</b>
+        </div>
+        <div class="mitada-main">
+          ${avatarMarkup(item, "mitada-avatar")}
+          <div class="mitada-copy">
+            <strong>${esc(teamName(item))}</strong>
+            <span>${esc(ownerName(item))}</span>
+          </div>
+          <div class="mitada-points">${fmtPts(item.points)}<span>pts</span></div>
+        </div>
+        <div class="mitada-foot">
+          <span>${esc(mitadaLine(item))}</span>
+          ${scoreSourceLabel(item.source) ? `<em>${esc(scoreSourceLabel(item.source))}</em>` : ""}
+        </div>
+      </a>`
+    )
+    .join("");
+}
+
 function renderSearchResults() {
   if (!currentState || !$("participantSearch") || !$("searchResults")) return;
   const query = normalizeText($("participantSearch").value);
@@ -652,6 +702,7 @@ function render(state) {
   renderRanking(participants);
   renderRoundRanking(state.roundRanking);
   renderHighlights(state.highlights);
+  renderMitadas(state.mitadas);
   renderBadges(participants);
   renderSearchResults();
 

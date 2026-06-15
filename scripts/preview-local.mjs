@@ -153,6 +153,67 @@ function previewLineup(seed = 0) {
   };
 }
 
+function previewTeamName(participant) {
+  return participant?.cartolaTeamName || participant?.nome || "Time sem nome";
+}
+
+function buildPreviewMitadas() {
+  const participantsById = new Map(state.participants.map((participant) => [participant.id, participant]));
+  const scoresByRound = new Map();
+  for (const history of state.history || []) {
+    const participant = participantsById.get(history.participantId);
+    if (!participant) continue;
+    for (const score of history.scores || []) {
+      const roundId = Number(score.roundId);
+      if (!Number.isFinite(roundId)) continue;
+      const list = scoresByRound.get(roundId) || [];
+      list.push({ participant, score, points: Number(score.points) || 0 });
+      scoresByRound.set(roundId, list);
+    }
+  }
+
+  const winners = [...scoresByRound.entries()]
+    .map(([roundId, entries]) => {
+      const ordered = entries.sort((a, b) => b.points - a.points || previewTeamName(a.participant).localeCompare(previewTeamName(b.participant), "pt-BR"));
+      return { roundId, winner: ordered[0], runnerUp: ordered[1] || null };
+    })
+    .filter((item) => item.winner)
+    .sort((a, b) => a.roundId - b.roundId);
+
+  const countByParticipant = new Map();
+  for (const item of winners) {
+    countByParticipant.set(item.winner.participant.id, (countByParticipant.get(item.winner.participant.id) || 0) + 1);
+  }
+
+  return winners
+    .sort((a, b) => b.roundId - a.roundId)
+    .map((item) => ({
+      roundId: item.roundId,
+      roundName: state.currentRound?.id === item.roundId ? state.currentRound.nome || `Rodada ${item.roundId}` : `Rodada ${item.roundId}`,
+      participantId: item.winner.participant.id,
+      nome: item.winner.participant.nome,
+      cartolaTeamName: item.winner.participant.cartolaTeamName,
+      cartolaOwnerName: item.winner.participant.cartolaOwnerName,
+      escudoUrl: item.winner.participant.escudoUrl,
+      points: Number(item.winner.points.toFixed(2)),
+      source: item.winner.score.source || "cartola",
+      playedCount: item.winner.score.playedCount ?? item.winner.participant.playedCount ?? null,
+      lineupCount: item.winner.score.lineupCount ?? item.winner.participant.lineupCount ?? null,
+      mitadasCount: countByParticipant.get(item.winner.participant.id) || 1,
+      runnerUp: item.runnerUp
+        ? {
+            participantId: item.runnerUp.participant.id,
+            nome: item.runnerUp.participant.nome,
+            cartolaTeamName: item.runnerUp.participant.cartolaTeamName,
+            cartolaOwnerName: item.runnerUp.participant.cartolaOwnerName,
+            escudoUrl: item.runnerUp.participant.escudoUrl,
+            points: Number(item.runnerUp.points.toFixed(2)),
+            diff: Number(Math.max(0, item.winner.points - item.runnerUp.points).toFixed(2)),
+          }
+        : null,
+    }));
+}
+
 function refreshDerived() {
   const ranked = [...state.participants].sort((a, b) => Number(b.pontos || 0) - Number(a.pontos || 0));
   state.participants = ranked.map((p, index) => ({
@@ -182,6 +243,7 @@ function refreshDerived() {
     state.participants[1] && { code: "chase", tone: "silver", label: "Na cola", title: state.participants[1].cartolaTeamName || state.participants[1].nome, body: "A disputa pelo topo esta viva.", participantId: state.participants[1].id, value: "#2" },
     state.participants[3] && { code: "lantern", tone: "bronze", label: "Ainda da tempo", title: state.participants[3].cartolaTeamName || state.participants[3].nome, body: "Uma rodada boa muda tudo.", participantId: state.participants[3].id, value: "#4" },
   ].filter(Boolean);
+  state.mitadas = buildPreviewMitadas();
 }
 
 refreshDerived();

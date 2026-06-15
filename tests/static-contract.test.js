@@ -8,9 +8,11 @@ function read(file) {
 
 test("public page exposes the IDs required by landing.js", () => {
   const html = read("index.html");
-  for (const id of ["titulo", "subtitulo", "total", "chipN", "chipValor", "prizes", "podium", "lista", "roundList", "badgeList", "highlights", "shareRoundBtn", "roundCardBtn", "roundShareNote", "roundMural", "roundMuralText", "backToTop"]) {
+  for (const id of ["titulo", "subtitulo", "total", "chipN", "chipValor", "prizes", "podium", "lista", "roundList", "mitadasList", "badgeList", "highlights", "shareRoundBtn", "roundCardBtn", "roundShareNote", "roundMural", "roundMuralText", "backToTop"]) {
     assert.match(html, new RegExp(`id="${id}"`), `${id} must exist in index.html`);
   }
+  assert.match(html, /data-tab="mitadas"/);
+  assert.match(html, /data-panel="mitadas"/);
 });
 
 test("admin page exposes the IDs required by admin.js", () => {
@@ -68,10 +70,21 @@ test("public data contract exposes social hub fields", () => {
   const db = read("lib/db.js");
   const dataApi = read("api/data.js");
   assert.match(db, /highlights: buildHighlights/);
+  assert.match(db, /mitadas: buildMitadas/);
   assert.match(db, /lineup/);
   assert.match(db, /rivals/);
   assert.match(db, /mural: config\.mural/);
   assert.match(dataApi, /mural: text/);
+});
+
+test("public page renders mitadas history", () => {
+  const js = read("landing.js");
+  const css = read("styles.css");
+  assert.match(js, /function renderMitadas/);
+  assert.match(js, /mitadasList/);
+  assert.match(js, /mitada-card/);
+  assert.match(css, /\.mitada-list/);
+  assert.match(css, /\.mitada-card/);
 });
 
 test("public round card shares the full round ranking", () => {
