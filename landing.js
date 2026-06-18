@@ -223,23 +223,27 @@ function renderRanking(participants) {
 }
 
 function isPartialParticipant(participant) {
+  if (participant.source !== "cartola") return false;
+  const starters = participant.lineup && Array.isArray(participant.lineup.starters) ? participant.lineup.starters : null;
+  if (starters) {
+    // Ao vivo = ainda tem titular com jogo EM ANDAMENTO (status "waiting").
+    // Titular que ficou de fora e cujo jogo já acabou fica "empty" (resolvido),
+    // então não mantém o time "aguardando" para sempre.
+    return starters.some((athlete) => athlete.positionId !== 6 && athlete.status === "waiting");
+  }
+  // Fallback (sem escalação detalhada): usa jogou < escalado.
   const played = Number(participant.playedCount);
   const total = Number(participant.lineupCount);
-  return participant.source === "cartola" && Number.isFinite(played) && Number.isFinite(total) && total > 0 && played < total;
+  return Number.isFinite(played) && Number.isFinite(total) && total > 0 && played < total;
 }
 
 function roundLiveInfo(state) {
   const list = Array.isArray(state?.roundRanking) ? state.roundRanking : [];
-  let live = false;
-  let played = 0;
-  let total = 0;
+  let liveTeams = 0;
   for (const participant of list) {
-    if (!Number.isFinite(Number(participant.lineupCount)) || Number(participant.lineupCount) <= 0) continue;
-    played += Number(participant.playedCount) || 0;
-    total += Number(participant.lineupCount) || 0;
-    if (isPartialParticipant(participant)) live = true;
+    if (isPartialParticipant(participant)) liveTeams += 1;
   }
-  return { live, played, total };
+  return { live: liveTeams > 0, liveTeams };
 }
 
 function rankingRow(participant, rank, maxPts, index = 0, options = {}) {
@@ -290,8 +294,12 @@ function renderLiveState(state, viewingCurrent) {
   if (banner) {
     const show = viewingCurrent && info.live;
     banner.hidden = !show;
-    if (show && info.total > 0) {
-      $("liveBannerText").textContent = `Rodada em andamento — ${info.played}/${info.total} em campo. Pontos parciais, atualiza sozinho.`;
+    if (show) {
+      const n = info.liveTeams || 0;
+      $("liveBannerText").textContent =
+        n > 0
+          ? `Rodada em andamento — ${n} time${n > 1 ? "s" : ""} ainda em campo. Pontos parciais, atualiza sozinho.`
+          : "Rodada em andamento — pontos parciais, atualiza sozinho.";
     }
   }
   // O dot da aba reflete sempre a rodada atual (mesmo olhando uma passada).
