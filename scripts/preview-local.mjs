@@ -144,14 +144,38 @@ let state = {
   ],
 };
 
+function previewAthleteId(name) {
+  let h = 0;
+  for (let i = 0; i < name.length; i += 1) h = (h * 31 + name.charCodeAt(i)) % 1000000;
+  return h || 1;
+}
+
+const PREVIEW_COUNTRIES = [
+  { name: "Brasil", abbr: "BRA" },
+  { name: "Argentina", abbr: "ARG" },
+  { name: "França", abbr: "FRA" },
+  { name: "Inglaterra", abbr: "ING" },
+  { name: "Portugal", abbr: "POR" },
+  { name: "Espanha", abbr: "ESP" },
+  { name: "Alemanha", abbr: "ALE" },
+  { name: "Holanda", abbr: "HOL" },
+];
+
+function previewCountry(name) {
+  return PREVIEW_COUNTRIES[previewAthleteId(name) % PREVIEW_COUNTRIES.length];
+}
+
 function previewAthlete(name, positionId, positionAbbr, points, status = "scored", extras = {}) {
+  const country = previewCountry(name);
   return {
-    id: Math.floor(Math.random() * 1000000),
+    // id estável pelo nome: jogadores iguais entre times compartilham id (pra ownership/raio-x).
+    id: previewAthleteId(name),
     name,
     positionId,
     positionAbbr,
     position: positionAbbr,
-    club: { abbr: extras.club || "RUA" },
+    // No Cartola Copa o "clube" é a seleção (país). Em produção vem com badgeUrl (bandeira).
+    club: { name: country.name, abbr: country.abbr, badgeUrl: "" },
     points,
     status,
     played: status === "scored",
@@ -171,8 +195,8 @@ function previewLineup(seed = 0) {
     previewAthlete("Maestro", 4, "MEI", 9.3, "scored", { captain: seed % 2 === 0 }),
     previewAthlete("Camisa Dez", 4, "MEI", 5.5),
     previewAthlete("Volante", 4, "MEI", null, "waiting"),
-    previewAthlete("Artilheiro", 5, "ATA", 12.6, "scored", { captain: seed % 2 === 1 }),
-    previewAthlete("Ponta Rapido", 5, "ATA", 2.1),
+    previewAthlete("Artilheiro", 5, "ATA", 18.5, "scored", { captain: seed % 2 === 1 }),
+    previewAthlete(`Ponta ${seed + 1}`, 5, "ATA", 11 + seed * 2, "scored"),
     previewAthlete("Centroavante", 5, "ATA", null, "empty"),
     previewAthlete("Professor", 6, "TEC", 0),
   ];

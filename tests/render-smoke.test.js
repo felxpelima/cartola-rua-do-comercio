@@ -223,3 +223,57 @@ test("participant.js renders lineup, head-to-head picker and captains without er
   assert.equal(els.get("captainSection").hidden, false);
   assert.match(html(els, "captainList"), /Maestro|Artilheiro/);
 });
+
+function lineupState() {
+  const s = richState();
+  const A = (id, name, pos, abbr, pts, o = {}) => ({
+    id,
+    name,
+    positionId: pos,
+    positionAbbr: abbr,
+    position: abbr,
+    club: { abbr: "RUA" },
+    points: pts,
+    scout: null,
+    status: pts == null ? "waiting" : "scored",
+    played: pts != null,
+    isCaptain: !!o.cap,
+    isLuxuryReserve: !!o.luxo,
+    kind: "starter",
+  });
+  const shared = (capId) => ({
+    formation: "4-3-3",
+    starters: [A(1, "Goleirão", 1, "GOL", 6), A(2, "Zagueiro", 3, "ZAG", 5), A(99, "Craque Geral", 4, "MEI", 11, { cap: capId === 99 }), A(3, "Atacante", 5, "ATA", 8, { cap: capId === 3 }), A(50, "Técnico", 6, "TEC", 0)],
+    reserves: [],
+    captainId: capId,
+    captainName: capId === 99 ? "Craque Geral" : "Atacante",
+    playedCount: 4,
+    lineupCount: 4,
+  });
+  s.participants[0].lineup = shared(99);
+  s.participants[0].lineup.starters.push(A(777, "Diferencial Z", 5, "ATA", 14));
+  s.participants[1].lineup = shared(3);
+  s.participants[2].lineup = shared(99);
+  return s;
+}
+
+test("landing.js renders Raio-X da rodada from the league lineups", async () => {
+  const els = await runScript("landing.js", lineupState(), "");
+  assert.equal(els.get("raiox").hidden, false);
+  assert.match(html(els, "raiox"), /Mais escalado/);
+  assert.match(html(els, "raiox"), /Capitão favorito/);
+  assert.match(html(els, "raiox"), /Maior pontuador/);
+  assert.match(html(els, "raiox"), /Diferencial certeiro/);
+  assert.match(html(els, "raiox"), /Craque Geral/);
+  // Premiação mostra quem leva agora.
+  assert.match(html(els, "prizes"), /Como está agora/);
+});
+
+test("participant.js renders lineup cards with captain badge and best highlight", async () => {
+  const els = await runScript("participant.js", lineupState(), "?id=p1");
+  const pitch = html(els, "lineupPitch");
+  assert.match(pitch, /athlete-card/);
+  assert.match(pitch, /athlete-cap/);
+  assert.match(pitch, /is-best/);
+  assert.match(pitch, /Craque Geral/);
+});

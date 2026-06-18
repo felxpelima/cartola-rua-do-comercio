@@ -5,6 +5,7 @@ const $ = (id) => document.getElementById(id);
 let currentParticipant = null;
 let currentState = null;
 let currentLineupAthletes = new Map();
+let leagueOwnership = { totalTeams: 0, byAthlete: new Map() };
 
 const SCOUT_META = {
   G: { label: "Gol", tone: "positive" },
@@ -219,6 +220,21 @@ function scoutSentence(athlete, entries) {
   return `A pontuacao foi afetada por ${negativeText}.`;
 }
 
+const CAPTAIN_MULT = 1.5;
+
+// Pontuação efetiva no time: capitão conta x1,5. É o que de fato soma pro total.
+function effectivePoints(athlete) {
+  if (athlete.points == null) return null;
+  return athlete.isCaptain ? athlete.points * CAPTAIN_MULT : athlete.points;
+}
+
+function pointsClass(points) {
+  if (points == null) return "pts-waiting";
+  if (points > 0) return "pts-pos";
+  if (points < 0) return "pts-neg";
+  return "pts-zero";
+}
+
 function athleteCard(athlete, opts = {}) {
   const key = athleteKey(athlete);
   const classes = ["athlete-card", `status-${athlete.status || "waiting"}`];
@@ -226,25 +242,34 @@ function athleteCard(athlete, opts = {}) {
   if (athlete.isLuxuryReserve) classes.push("is-luxury");
   if (opts.replacingName) classes.push("is-sub-in");
   if (opts.out) classes.push("is-out");
+  if (opts.best) classes.push("is-best");
   const flags = [];
-  if (athlete.isCaptain) flags.push('<span class="atag atag-cap">C · Capitão</span>');
   if (athlete.isLuxuryReserve) flags.push('<span class="atag atag-luxo">★ Reserva de luxo</span>');
   if (opts.replacingName) flags.push(`<span class="atag atag-sub">entrou no lugar de ${esc(opts.replacingName)}</span>`);
   if (opts.out) flags.push('<span class="atag atag-out">Substituído</span>');
-  const photo = athlete.photoUrl
+  if (opts.best) flags.push('<span class="atag atag-best">★ Destaque do time</span>');
+  const media = athlete.photoUrl
     ? `<span class="athlete-photo image" data-initials="${esc(monogram(athlete.name))}" style="background:${avatarBg(athlete.name)}"><img src="${esc(athlete.photoUrl)}" alt="" loading="lazy" /></span>`
     : `<span class="athlete-photo" style="background:${avatarBg(athlete.name)}">${esc(monogram(athlete.name))}</span>`;
+  const photo = `<span class="athlete-photo-col">${media}${athlete.isCaptain ? '<span class="athlete-cap" title="Capitão">C</span>' : ""}</span>`;
+  const flag = athlete.club && athlete.club.badgeUrl ? `<img class="athlete-flag" src="${esc(athlete.club.badgeUrl)}" alt="" loading="lazy" />` : "";
+  const country = athlete.club && (athlete.club.abbr || athlete.club.name) ? ` · ${esc(athlete.club.abbr || athlete.club.name)}` : "";
+  const isCaptainScored = athlete.isCaptain && athlete.points != null;
+  const effPts = effectivePoints(athlete);
   return `
     <button class="${classes.join(" ")}" type="button" data-athlete-id="${esc(key)}" aria-label="Ver scouts de ${esc(athlete.name)}">
       ${photo}
       <div class="athlete-main">
-        <span class="athlete-pos">${esc(athlete.positionAbbr || "POS")}${athlete.club?.abbr ? ` · ${esc(athlete.club.abbr)}` : ""}</span>
+        <span class="athlete-pos">${flag}${esc(athlete.positionAbbr || "POS")}${country}</span>
         <strong>${esc(athlete.name)}</strong>
         ${scoutMiniChips(athlete)}
         ${flags.length ? `<span class="athlete-flags">${flags.join("")}</span>` : ""}
         <em>${esc(statusLabel(athlete.status))}</em>
       </div>
-      <b>${athlete.points == null ? "-" : fmtPts(athlete.points)}</b>
+      <span class="athlete-pts">
+        <b class="${pointsClass(effPts)}">${effPts == null ? "-" : fmtPts(effPts)}</b>
+        ${isCaptainScored ? `<em class="cap-mult">${fmtPts(athlete.points)} ×1,5</em>` : ""}
+      </span>
     </button>`;
 }
 
@@ -265,7 +290,12 @@ function renderLineup(participant) {
   const total = Number(lineup.lineupCount);
   const progress = Number.isFinite(played) && Number.isFinite(total) && total > 0 ? `${played}/${total} jogadores pontuaram` : "Aguardando pontuação";
 
+  const roundTotal = participant.currentRoundPoints;
   $("lineupSummary").innerHTML = `
+    <div>
+      <span>Total na rodada</span>
+      <strong>${roundTotal == null ? "-" : fmtPts(roundTotal)} pts</strong>
+    </div>
     <div>
       <span>Formação</span>
       <strong>${esc(lineup.formation || "Escalação")}</strong>
@@ -287,8 +317,25 @@ function renderLineup(participant) {
     { label: "Técnico", items: starters.filter((athlete) => athlete.positionId === 6) },
   ].filter((row) => row.items.length);
 
-  const renderStarter = (starter) =>
-    starter.substitutedOut && starter.substitute ? athleteCard(starter.substitute, { replacingName: starter.name }) : athleteCard(starter);
+  // Destaque do time: titular efetivo (já contando substituições) com maior pontuação positiva.
+  const effective = rows.flatMap((row) => row.items.map((s) => (s.substitutedOut && s.substitute ? s.substitute : s)));
+  let bestKey = null;
+  let bestPts = 0;
+  for (const a of effective) {
+    if (a.positionId === 6) continue;
+    const ep = effectivePoints(a);
+    if (ep == null) continue;
+    if (ep > bestPts) {
+      bestPts = ep;
+      bestKey = athleteKey(a);
+    }
+  }
+
+  const renderStarter = (starter) => {
+    const shown = starter.substitutedOut && starter.substitute ? starter.substitute : starter;
+    const best = bestKey != null && athleteKey(shown) === bestKey;
+    return shown === starter.substitute ? athleteCard(starter.substitute, { replacingName: starter.name, best }) : athleteCard(starter, { best });
+  };
 
   $("lineupPitch").innerHTML = rows
     .map((row) => `<div class="pitch-row"><span>${row.label}</span><div>${row.items.map(renderStarter).join("")}</div></div>`)
@@ -320,6 +367,47 @@ function renderScoutPhoto(athlete) {
   holder.textContent = initials;
 }
 
+function buildLeagueOwnership(state) {
+  const participants = Array.isArray(state.participants) ? state.participants : [];
+  const teams = participants.filter((p) => p.lineup && Array.isArray(p.lineup.starters));
+  const byAthlete = new Map();
+  for (const p of teams) {
+    const name = teamName(p);
+    for (const athlete of p.lineup.starters || []) {
+      if (athlete.id == null) continue;
+      let rec = byAthlete.get(athlete.id);
+      if (!rec) {
+        rec = { owners: [], captains: [] };
+        byAthlete.set(athlete.id, rec);
+      }
+      rec.owners.push(name);
+      if (athlete.isCaptain) rec.captains.push(name);
+    }
+  }
+  return { totalTeams: teams.length, byAthlete };
+}
+
+function renderScoutOwners(athlete) {
+  const el = $("scoutModalOwners");
+  if (!el) return;
+  const total = leagueOwnership.totalTeams;
+  const rec = athlete.id != null ? leagueOwnership.byAthlete.get(athlete.id) : null;
+  if (!rec || total <= 0) {
+    el.hidden = true;
+    el.innerHTML = "";
+    return;
+  }
+  const n = rec.owners.length;
+  const caps = rec.captains.length;
+  const pct = Math.round((n / total) * 100);
+  const badge = n === 1 ? '<span class="own-badge diff">Diferencial</span>' : n >= total ? '<span class="own-badge mule">Muleta</span>' : "";
+  el.hidden = false;
+  el.innerHTML = `
+    <div class="own-head"><strong>Na sua liga</strong>${badge}</div>
+    <p class="own-line">Escalado por <b>${n} de ${total}</b> times (${pct}%)${caps ? ` · capitão de <b>${caps}</b>` : ""}.</p>
+    <div class="own-list">${rec.owners.map((nm) => `<span>${esc(nm)}</span>`).join("")}</div>`;
+}
+
 function openScoutModal(athleteId) {
   const athlete = currentLineupAthletes.get(String(athleteId));
   if (!athlete) return;
@@ -327,10 +415,14 @@ function openScoutModal(athleteId) {
   const modal = $("scoutModal");
   renderScoutPhoto(athlete);
   $("scoutModalName").textContent = athlete.name || "Atleta";
-  $("scoutModalMeta").textContent = `${athlete.position || athlete.positionAbbr || "Posição"}${athlete.club?.abbr ? ` - ${athlete.club.abbr}` : ""}`;
+  const mClub = athlete.club || {};
+  const mFlag = mClub.badgeUrl ? `<img class="scout-flag" src="${esc(mClub.badgeUrl)}" alt="" loading="lazy" />` : "";
+  const mCountry = mClub.name || mClub.abbr || "";
+  $("scoutModalMeta").innerHTML = `${mFlag}${esc(athlete.position || athlete.positionAbbr || "Posição")}${mCountry ? ` · ${esc(mCountry)}` : ""}`;
   $("scoutModalStatus").textContent = [athlete.isCaptain ? "capitão" : "", athlete.isLuxuryReserve ? "reserva de luxo" : "", statusLabel(athlete.status)].filter(Boolean).join(" - ");
-  $("scoutModalPoints").textContent = athlete.points == null ? "-" : fmtPts(athlete.points);
-  $("scoutModalNote").textContent = scoutSentence(athlete, entries);
+  $("scoutModalPoints").textContent = athlete.points == null ? "-" : fmtPts(effectivePoints(athlete));
+  const capNote = athlete.isCaptain && athlete.points != null ? `Capitão: ${fmtPts(athlete.points)} ×1,5 = ${fmtPts(athlete.points * CAPTAIN_MULT)} pts no time. ` : "";
+  $("scoutModalNote").textContent = capNote + scoutSentence(athlete, entries);
   $("scoutModalChips").innerHTML = entries.length
     ? entries
         .map(
@@ -342,6 +434,7 @@ function openScoutModal(athleteId) {
         )
         .join("")
     : '<div class="empty compact"><p>Sem scouts detalhados para este jogador.</p></div>';
+  renderScoutOwners(athlete);
   setScoutModalState(true);
   $("scoutCloseBtn").focus();
 }
@@ -510,6 +603,7 @@ function render(state) {
   const participant = requestedId ? participants.find((p) => p.id === requestedId) : participants[0];
   currentParticipant = participant;
   currentState = state;
+  leagueOwnership = buildLeagueOwnership(state);
 
   const cfg = state.config || {};
   $("profileFooter").textContent = cfg.titulo || "Liga Rua do Comércio";

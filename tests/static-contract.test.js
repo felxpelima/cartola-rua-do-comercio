@@ -40,8 +40,8 @@ test("admin Cartola search separates add and replace actions", () => {
 
 test("admin assets use a cache-busting version after sync fixes", () => {
   const html = read("admin.html");
-  assert.match(html, /styles\.css\?v=fases-130/);
-  assert.match(html, /admin\.js\?v=fases-130/);
+  assert.match(html, /styles\.css\?v=fases-136/);
+  assert.match(html, /admin\.js\?v=fases-136/);
 });
 
 test("admin manual point edits are posted as round overrides", () => {

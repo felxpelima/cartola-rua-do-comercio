@@ -147,22 +147,25 @@ function renderPrizes(config, participants) {
   $("chipValor").textContent = fmtBRL(entryValue);
 
   const labels = ["Campeão", "Vice", "Terceiro"];
+  const ranked = [...participants].sort((a, b) => (Number(b.pontos) || 0) - (Number(a.pontos) || 0));
   $("prizes").innerHTML = [0, 1, 2]
-    .map(
-      (index) => `
+    .map((index) => {
+      const who = ranked[index] ? teamName(ranked[index]) : null;
+      return `
       <div class="prize-card glass m${index + 1}">
         <div class="blob"></div>
         <div class="prize-top">
           <div class="medal">${index + 1}</div>
           <div class="prize-place">${index + 1} lugar<small>${labels[index]}</small></div>
         </div>
+        ${who ? `<div class="prize-who"><span>Como está agora</span><strong>${esc(who)}</strong></div>` : ""}
         <div class="prize-value" data-val="${(total * percentages[index]) / 100}">${fmtBRL((total * percentages[index]) / 100)}</div>
         <div class="prize-foot">
-          <span class="prize-pct">${percentages[index]}% do bolao</span>
+          <span class="prize-pct">${percentages[index]}% do bolão</span>
           <span class="pct-bar"><i style="width:${(percentages[index] / maxPct) * 100}%"></i></span>
         </div>
-      </div>`
-    )
+      </div>`;
+    })
     .join("");
   if (firstRender) $("prizes").querySelectorAll(".prize-value").forEach((el) => countUp(el, Number(el.dataset.val), fmtBRL));
 }
@@ -240,10 +243,18 @@ function isPartialParticipant(participant) {
 function roundLiveInfo(state) {
   const list = Array.isArray(state?.roundRanking) ? state.roundRanking : [];
   let liveTeams = 0;
+  let played = 0;
+  let total = 0;
   for (const participant of list) {
     if (isPartialParticipant(participant)) liveTeams += 1;
+    const pc = Number(participant.playedCount);
+    const lc = Number(participant.lineupCount);
+    if (Number.isFinite(pc) && Number.isFinite(lc) && lc > 0) {
+      played += pc;
+      total += lc;
+    }
   }
-  return { live: liveTeams > 0, liveTeams };
+  return { live: liveTeams > 0, liveTeams, played, total };
 }
 
 function rankingRow(participant, rank, maxPts, index = 0, options = {}) {
@@ -295,10 +306,9 @@ function renderLiveState(state, viewingCurrent) {
     const show = viewingCurrent && info.live;
     banner.hidden = !show;
     if (show) {
-      const n = info.liveTeams || 0;
       $("liveBannerText").textContent =
-        n > 0
-          ? `Rodada em andamento — ${n} time${n > 1 ? "s" : ""} ainda em campo. Pontos parciais, atualiza sozinho.`
+        info.total > 0
+          ? `Rodada em andamento — ${info.played}/${info.total} jogadores em campo. Pontos parciais, atualiza sozinho.`
           : "Rodada em andamento — pontos parciais, atualiza sozinho.";
     }
   }
@@ -377,6 +387,7 @@ function renderRoundSection(state) {
     renderRoundRanking(buildRoundRankingFor(state, viewingId), false);
     renderRoundRecap(state, false);
   }
+  renderRaioX(state, isCurrent);
 }
 
 function onRoundSelectChange() {
@@ -917,6 +928,77 @@ function checkMitou(state) {
   if (leaderId) prevRoundLeaderId = leaderId;
 }
 
+function buildLeagueLineupStats(state) {
+  const participants = Array.isArray(state.participants) ? state.participants : [];
+  const teams = participants.filter((p) => p.lineup && Array.isArray(p.lineup.starters));
+  const byAthlete = new Map();
+  for (const p of teams) {
+    for (const a of p.lineup.starters || []) {
+      if (a.id == null) continue;
+      let rec = byAthlete.get(a.id);
+      if (!rec) {
+        rec = { id: a.id, name: a.name, photoUrl: a.photoUrl, club: a.club, positionAbbr: a.positionAbbr, points: a.points, count: 0, captains: 0 };
+        byAthlete.set(a.id, rec);
+      }
+      rec.count += 1;
+      if (a.isCaptain) rec.captains += 1;
+      if (rec.points == null && a.points != null) rec.points = a.points;
+    }
+  }
+  return { totalTeams: teams.length, athletes: [...byAthlete.values()] };
+}
+
+function raioxCard(label, ath, stat, tone) {
+  const media = ath.photoUrl
+    ? `<span class="rx-photo image"><img src="${esc(ath.photoUrl)}" alt="" loading="lazy" /></span>`
+    : `<span class="rx-photo" style="${avatarBg(ath.name)}">${esc(monogram(ath.name))}</span>`;
+  return `
+    <div class="rx-card tone-${tone}">
+      <span class="rx-label">${esc(label)}</span>
+      <div class="rx-body">
+        ${media}
+        <div class="rx-info">
+          <strong>${esc(ath.name)}</strong>
+          <span>${esc(ath.positionAbbr || "")}${ath.club && ath.club.abbr ? " · " + esc(ath.club.abbr) : ""}</span>
+        </div>
+      </div>
+      <b class="rx-stat">${esc(stat)}</b>
+    </div>`;
+}
+
+function renderRaioX(state, show = true) {
+  const head = $("raioxHead");
+  const box = $("raiox");
+  if (!box) return;
+  const hide = () => {
+    if (head) head.hidden = true;
+    box.hidden = true;
+    box.innerHTML = "";
+  };
+  if (!show) return hide();
+  const { totalTeams, athletes } = buildLeagueLineupStats(state);
+  if (totalTeams < 2 || !athletes.length) return hide();
+
+  const cards = [];
+  const top = [...athletes].sort((a, b) => b.count - a.count || (b.points || 0) - (a.points || 0))[0];
+  if (top) cards.push(raioxCard("Mais escalado", top, `${top.count} de ${totalTeams} times`, "gold"));
+  const cap = [...athletes].filter((a) => a.captains > 0).sort((a, b) => b.captains - a.captains)[0];
+  if (cap) cards.push(raioxCard("Capitão favorito", cap, `${cap.captains}x capitão`, "green"));
+  const scorer = [...athletes].filter((a) => a.points != null).sort((a, b) => b.points - a.points)[0];
+  if (scorer && scorer.points > 0) cards.push(raioxCard("Maior pontuador", scorer, `${fmtPts(scorer.points)} pts`, "green"));
+  // Diferencial certeiro: poucos escalaram (<= 5 times) E pontuou mais de 10.
+  // Quanto menos times escalaram, melhor (count asc); empate desempata por pontos.
+  const diff = [...athletes]
+    .filter((a) => a.count <= 5 && a.points != null && a.points > 10)
+    .sort((a, b) => a.count - b.count || b.points - a.points)[0];
+  if (diff) cards.push(raioxCard("Diferencial certeiro", diff, `${diff.count} time${diff.count > 1 ? "s" : ""} · ${fmtPts(diff.points)} pts`, "blue"));
+
+  if (!cards.length) return hide();
+  box.innerHTML = cards.join("");
+  if (head) head.hidden = false;
+  box.hidden = false;
+}
+
 function renderMaintenance(state) {
   const banner = $("maintenanceBanner");
   if (!banner) return;
@@ -933,7 +1015,9 @@ function render(state) {
   const participants = Array.isArray(state.participants) ? state.participants : [];
   const muralText = String(state.mural || config.mural || "").trim();
 
-  $("titulo").textContent = config.titulo || "Liga Rua do Comércio";
+  // Texto principal fixo (nome do produto). A marca da liga (config.titulo,
+  // ex.: "Liga Rua do Comércio") segue no rodapé, no título da aba e nos cards.
+  $("titulo").textContent = "Cartola Rua do Comércio";
   $("subtitulo").textContent = config.subtitulo || "Copa do Mundo 2026";
   $("footer").innerHTML = 'Atualizado pelo organizador <span class="dot">-</span> ' + esc(config.titulo || "");
   document.title = (config.titulo || "Liga Rua do Comércio") + " · " + (config.subtitulo || "");

@@ -161,11 +161,39 @@ function fillForm() {
   updatePctNote();
 }
 
+const MARKET_STATE = {
+  running: { label: "Sincronizando…", tone: "info" },
+  success: { label: "Rodada sincronizada", tone: "ok" },
+  partial: { label: "Sincronização parcial", tone: "warn" },
+  pending_points: { label: "Aguardando o Cartola liberar a pontuação", tone: "warn" },
+  not_started: { label: "Mercado aberto — a rodada ainda não começou", tone: "info" },
+  unavailable: { label: "Cartola em manutenção / fora do ar", tone: "warn" },
+  empty: { label: "Nenhum time vinculado ao Cartola", tone: "muted" },
+  error: { label: "Erro na última sincronização", tone: "err" },
+  legacy: { label: "Usando armazenamento antigo", tone: "muted" },
+};
+
+function renderMarketState() {
+  const el = $("marketState");
+  if (!el) return;
+  const sync = state.lastSync;
+  if (!sync || !sync.status) {
+    el.hidden = true;
+    return;
+  }
+  const meta = MARKET_STATE[sync.status] || { label: sync.status, tone: "muted" };
+  el.className = "market-state tone-" + meta.tone;
+  el.hidden = false;
+  $("marketStateLabel").textContent = meta.label;
+  $("marketStateMsg").textContent = sync.message || "";
+}
+
 function renderAutomationSummary() {
   const linked = state.participants.filter((participant) => participant.cartolaTimeId).length;
   $("roundNote").textContent = state.currentRound ? state.currentRound.nome || `Rodada ${state.currentRound.id}` : "Aguardando";
   $("syncNote").textContent = state.lastSync ? `${fmtDate(state.lastSync.finishedAt || state.lastSync.startedAt)} · ${state.lastSync.status}` : "Ainda não sincronizado";
   $("sourceNote").textContent = linked ? `${linked}/${state.participants.length} times vinculados` : "Manual";
+  renderMarketState();
 }
 
 function renderSyncLog() {
