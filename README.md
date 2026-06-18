@@ -76,15 +76,31 @@ npm run probe:cartola
 
 O `verify` roda sintaxe JS, valida Prisma e executa os testes locais. O `probe:cartola` consulta endpoints públicos do Cartola Copa e mostra status/latência sem gravar no banco.
 
-## Cron
+## Cron / placar ao vivo
 
-Use um agendador externo chamando:
+A home mostra estado `AO VIVO` com pontos parciais sempre que uma sincronização recente trouxer rodada em andamento, e atualiza sozinha a cada 60s. Para isso ser automático (sem clicar em "Sincronizar"), algo precisa chamar `/api/sync-cartola` de tempos em tempos.
 
-```text
-https://SEU_DOMINIO/api/sync-cartola?secret=SEU_CRON_SECRET
-```
+### Cron externo grátis (cron-job.org) — recomendado no plano Hobby
 
-Também é possível enviar o segredo pelo header `x-cron-secret`.
+No plano grátis da Vercel o cron nativo só roda **1x por dia**. Para atualizar de poucos em poucos minutos durante os jogos, use um cron externo gratuito:
+
+1. Crie uma conta em <https://cron-job.org> (grátis).
+2. Crie um cronjob (método **GET**) apontando para:
+   ```text
+   https://SEU_DOMINIO.vercel.app/api/sync-cartola?secret=SEU_CRON_SECRET
+   ```
+3. Intervalo recomendado: **a cada 5 minutos** durante os jogos. Nas opções do cron-job.org dá para restringir aos dias/horários de jogo e economizar cota.
+4. Salve. Cada execução sincroniza todos os times vinculados e grava log em `SyncRun`.
+
+Notas:
+
+- A env `CRON_SECRET` precisa estar configurada na Vercel — é o que autentica a chamada (também aceita o header `x-cron-secret`).
+- O endpoint está com `export const config = { maxDuration: 60 }` para conseguir sincronizar todos os participantes dentro do limite de função do Hobby.
+- Não exagere no intervalo: cada sync faz 1 chamada ao Cartola por participante. A cada 5 min durante os jogos é tranquilo; 1 min 24/7 desperdiça cota à toa.
+
+### Vercel Cron (backup diário)
+
+O `vercel.json` já agenda um sync diário (`0 23 * * *`), que funciona em qualquer plano. O Vercel Cron envia `Authorization: Bearer $CRON_SECRET` automaticamente. No plano **Pro** dá para deixá-lo frequente direto no `vercel.json` (ex.: `*/5 * * * *`) e dispensar o cron externo.
 
 ## Arquivos principais
 

@@ -20,7 +20,7 @@ let state = {
     temporada: 2026,
     mural: "Hoje tem disputa boa: confere teu capitao, manda o print e prepara a resenha.",
   },
-  currentRound: { id: 1, nome: "Rodada 1", status: "fechado" },
+  currentRound: { id: 3, nome: "Rodada 3", status: "mercado_fechado" },
   lastSync: {
     status: "success",
     finishedAt: new Date().toISOString(),
@@ -34,12 +34,14 @@ let state = {
     {
       id: "p1",
       nome: "UGO Comércio FC",
-      pontos: 92.13,
-      totalPoints: 92.13,
+      pontos: 247.43,
+      totalPoints: 247.43,
       currentRoundPoints: 92.13,
-      average: 92.13,
+      average: 82.48,
       bestRound: 92.13,
-      worstRound: 92.13,
+      worstRound: 71.3,
+      playedCount: 8,
+      lineupCount: 11,
       cartolaTimeId: 51345451,
       cartolaSlug: "ugo-comercio-fc",
       cartolaTeamName: "UGO Comércio FC",
@@ -52,12 +54,14 @@ let state = {
     {
       id: "p2",
       nome: "Mercadão United",
-      pontos: 81.7,
-      totalPoints: 81.7,
+      pontos: 235.4,
+      totalPoints: 235.4,
       currentRoundPoints: 81.7,
-      average: 81.7,
-      bestRound: 81.7,
-      worstRound: 81.7,
+      average: 78.47,
+      bestRound: 90.2,
+      worstRound: 63.5,
+      playedCount: 11,
+      lineupCount: 11,
       cartolaTimeId: 10002,
       cartolaTeamName: "Mercadão United",
       cartolaOwnerName: "João",
@@ -69,12 +73,14 @@ let state = {
     {
       id: "p3",
       nome: "Banca Central",
-      pontos: 75.42,
-      totalPoints: 75.42,
+      pontos: 212.82,
+      totalPoints: 212.82,
       currentRoundPoints: 75.42,
-      average: 75.42,
-      bestRound: 75.42,
-      worstRound: 75.42,
+      average: 70.94,
+      bestRound: 88.0,
+      worstRound: 49.4,
+      playedCount: 11,
+      lineupCount: 11,
       cartolaTimeId: 10003,
       cartolaTeamName: "Banca Central",
       cartolaOwnerName: "Ana",
@@ -86,12 +92,12 @@ let state = {
     {
       id: "p4",
       nome: "Bar do Mundial",
-      pontos: 63.1,
-      totalPoints: 63.1,
+      pontos: 161.8,
+      totalPoints: 161.8,
       currentRoundPoints: null,
-      average: null,
-      bestRound: null,
-      worstRound: null,
+      average: 53.93,
+      bestRound: 63.1,
+      worstRound: 40.1,
       source: "manual",
       rank: 4,
       delta: 0,
@@ -99,10 +105,42 @@ let state = {
     },
   ],
   history: [
-    { participantId: "p1", nome: "UGO Comércio FC", scores: [{ roundId: 1, points: 92.13, source: "cartola" }] },
-    { participantId: "p2", nome: "Mercadão United", scores: [{ roundId: 1, points: 81.7, source: "cartola" }] },
-    { participantId: "p3", nome: "Banca Central", scores: [{ roundId: 1, points: 75.42, source: "cartola" }] },
-    { participantId: "p4", nome: "Bar do Mundial", scores: [{ roundId: 1, points: 63.1, source: "manual" }] },
+    {
+      participantId: "p1",
+      nome: "UGO Comércio FC",
+      scores: [
+        { roundId: 1, points: 71.3, source: "cartola", playedCount: 11, lineupCount: 11, captain: { name: "Maestro da Vila", points: 9.3 } },
+        { roundId: 2, points: 84.0, source: "cartola", playedCount: 11, lineupCount: 11, captain: { name: "Artilheiro", points: 12.6 } },
+        { roundId: 3, points: 92.13, source: "cartola", playedCount: 8, lineupCount: 11, captain: { name: "Ponta Rápido", points: 4.1 } },
+      ],
+    },
+    {
+      participantId: "p2",
+      nome: "Mercadão United",
+      scores: [
+        { roundId: 1, points: 63.5, source: "cartola", playedCount: 11, lineupCount: 11, captain: { name: "Camisa 10", points: 7.0 } },
+        { roundId: 2, points: 90.2, source: "cartola", playedCount: 11, lineupCount: 11, captain: { name: "Goleiro Muralha", points: 6.0 } },
+        { roundId: 3, points: 81.7, source: "cartola", playedCount: 11, lineupCount: 11, captain: { name: "Centroavante", points: 10.5 } },
+      ],
+    },
+    {
+      participantId: "p3",
+      nome: "Banca Central",
+      scores: [
+        { roundId: 1, points: 88.0, source: "cartola", playedCount: 11, lineupCount: 11, captain: { name: "Zagueiro Xerife", points: 5.0 } },
+        { roundId: 2, points: 49.4, source: "cartola", playedCount: 11, lineupCount: 11, captain: { name: "Meia Criativo", points: 8.0 } },
+        { roundId: 3, points: 75.42, source: "cartola", playedCount: 11, lineupCount: 11, captain: { name: "Lateral Avenida", points: 3.2 } },
+      ],
+    },
+    {
+      participantId: "p4",
+      nome: "Bar do Mundial",
+      scores: [
+        { roundId: 1, points: 40.1, source: "manual" },
+        { roundId: 2, points: 58.6, source: "manual" },
+        { roundId: 3, points: 63.1, source: "manual" },
+      ],
+    },
   ],
 };
 
@@ -142,6 +180,16 @@ function previewLineup(seed = 0) {
     previewAthlete("Reserva Quente", 5, "ATA", 8.2, "scored", { kind: "reserve", luxury: true }),
     previewAthlete("Banco Seguro", 4, "MEI", null, "waiting", { kind: "reserve" }),
   ];
+  // Demonstra o reserva de luxo confirmado no lugar de um titular ausente.
+  const luxe = reserves.find((athlete) => athlete.isLuxuryReserve);
+  const absent = starters.find((athlete) => athlete.positionId === 5 && athlete.status === "empty");
+  if (luxe && absent) {
+    absent.substitutedOut = true;
+    absent.substitute = luxe;
+    luxe.cameIn = true;
+    luxe.replacedName = absent.name;
+    luxe.replacedPositionAbbr = absent.positionAbbr;
+  }
   return {
     formation: "4-3-3",
     starters,
@@ -223,11 +271,25 @@ function refreshDerived() {
     pontos: Number(p.pontos ?? p.totalPoints) || 0,
     lineup: p.lineup || (p.cartolaTimeId ? previewLineup(index) : null),
   }));
+  const miniRival = (rival, base) =>
+    rival
+      ? {
+          id: rival.id,
+          rank: rival.rank,
+          nome: rival.nome,
+          cartolaTeamName: rival.cartolaTeamName,
+          cartolaOwnerName: rival.cartolaOwnerName,
+          escudoUrl: rival.escudoUrl,
+          pontos: rival.pontos,
+          totalPoints: rival.totalPoints,
+          diff: Math.abs(Number(base.pontos || 0) - Number(rival.pontos || 0)),
+        }
+      : null;
   state.participants = state.participants.map((p, index, list) => ({
     ...p,
     rivals: {
-      ahead: list[index - 1] ? { ...list[index - 1], diff: Math.abs(Number(p.pontos || 0) - Number(list[index - 1].pontos || 0)) } : null,
-      behind: list[index + 1] ? { ...list[index + 1], diff: Math.abs(Number(p.pontos || 0) - Number(list[index + 1].pontos || 0)) } : null,
+      ahead: miniRival(list[index - 1], p),
+      behind: miniRival(list[index + 1], p),
     },
   }));
   state.roundRanking = state.participants
@@ -267,6 +329,10 @@ async function readBody(req) {
 }
 
 function json(res, status, payload) {
+  if (res.headersSent) {
+    res.end();
+    return;
+  }
   res.writeHead(status, {
     "Content-Type": "application/json; charset=utf-8",
     "Cache-Control": "no-store",
@@ -578,11 +644,16 @@ async function serveStatic(res, pathname) {
 }
 
 const server = createServer(async (req, res) => {
+  res.on("error", () => {});
   const url = new URL(req.url, `http://${host}`);
   try {
     if (await handleApi(req, res, url)) return;
     await serveStatic(res, url.pathname);
   } catch (e) {
+    if (res.headersSent) {
+      res.end();
+      return;
+    }
     json(res, 500, { error: e.message || "Erro no preview local" });
   }
 });

@@ -8,44 +8,44 @@ let currentLineupAthletes = new Map();
 
 const SCOUT_META = {
   G: { label: "Gol", tone: "positive" },
-  A: { label: "Assistencia", tone: "positive" },
+  A: { label: "Assistência", tone: "positive" },
   DS: { label: "Desarme", tone: "positive" },
   DE: { label: "Defesa", tone: "positive" },
-  DP: { label: "Defesa de penalti", tone: "positive" },
+  DP: { label: "Defesa de pênalti", tone: "positive" },
   SG: { label: "Saldo de gol", tone: "positive" },
   FS: { label: "Falta sofrida", tone: "positive" },
-  FF: { label: "Finalizacao fora", tone: "positive" },
-  FD: { label: "Finalizacao defendida", tone: "positive" },
-  FT: { label: "Finalizacao na trave", tone: "positive" },
-  V: { label: "Vitoria tecnico", tone: "positive" },
+  FF: { label: "Finalização fora", tone: "positive" },
+  FD: { label: "Finalização defendida", tone: "positive" },
+  FT: { label: "Finalização na trave", tone: "positive" },
+  V: { label: "Vitória técnico", tone: "positive" },
   FC: { label: "Falta cometida", tone: "negative" },
-  CA: { label: "Cartao amarelo", tone: "negative" },
-  CV: { label: "Cartao vermelho", tone: "negative" },
+  CA: { label: "Cartão amarelo", tone: "negative" },
+  CV: { label: "Cartão vermelho", tone: "negative" },
   GC: { label: "Gol contra", tone: "negative" },
   GS: { label: "Gol sofrido", tone: "negative" },
-  PP: { label: "Penalti perdido", tone: "negative" },
+  PP: { label: "Pênalti perdido", tone: "negative" },
   PE: { label: "Passe errado", tone: "negative" },
   I: { label: "Impedimento", tone: "negative" },
 };
 
 const SCOUT_PLURAL = {
   G: "Gols",
-  A: "Assistencias",
+  A: "Assistências",
   DS: "Desarmes",
   DE: "Defesas",
-  DP: "Defesas de penalti",
+  DP: "Defesas de pênalti",
   SG: "Saldos de gol",
   FS: "Faltas sofridas",
-  FF: "Finalizacoes fora",
-  FD: "Finalizacoes defendidas",
-  FT: "Finalizacoes na trave",
-  V: "Vitorias tecnico",
+  FF: "Finalizações fora",
+  FD: "Finalizações defendidas",
+  FT: "Finalizações na trave",
+  V: "Vitórias técnico",
   FC: "Faltas cometidas",
-  CA: "Cartoes amarelos",
-  CV: "Cartoes vermelhos",
+  CA: "Cartões amarelos",
+  CV: "Cartões vermelhos",
   GC: "Gols contra",
   GS: "Gols sofridos",
-  PP: "Penaltis perdidos",
+  PP: "Pênaltis perdidos",
   PE: "Passes errados",
   I: "Impedimentos",
 };
@@ -118,7 +118,7 @@ function renderBadges(participant) {
 function renderHistory(state, participant) {
   const history = scoreHistory(state, participant);
   if (!history.length) {
-    $("profileHistory").innerHTML = '<div class="empty compact"><p>Historico aparece depois da primeira sincronizacao.</p></div>';
+    $("profileHistory").innerHTML = '<div class="empty compact"><p>Histórico aparece depois da primeira sincronização.</p></div>';
     return;
   }
 
@@ -140,20 +140,20 @@ function renderHistory(state, participant) {
 function renderRivals(participant) {
   const rivals = participant.rivals || {};
   const cards = [
-    { label: "Na mira", item: rivals.ahead, empty: "Ninguem acima" },
-    { label: "No retrovisor", item: rivals.behind, empty: "Ninguem abaixo" },
+    { label: "Na mira", item: rivals.ahead, empty: "Ninguém acima" },
+    { label: "No retrovisor", item: rivals.behind, empty: "Ninguém abaixo" },
   ];
 
   $("profileRivals").innerHTML = cards
     .map((card) => {
       if (!card.item) {
-        return `<div class="rival-card glass"><span>${card.label}</span><strong>${card.empty}</strong><p>A tabela esta tranquila por aqui.</p></div>`;
+        return `<div class="rival-card glass"><span>${card.label}</span><strong>${card.empty}</strong><p>A tabela está tranquila por aqui.</p></div>`;
       }
       return `
       <a class="rival-card glass" href="${profileHref(card.item)}">
         <span>${card.label}</span>
         <strong>#${card.item.rank} ${esc(teamName(card.item))}</strong>
-        <p>${fmtPts(card.item.diff)} pts de diferenca</p>
+        <p>${fmtPts(card.item.diff)} pts de diferença</p>
       </a>`;
     })
     .join("");
@@ -209,7 +209,7 @@ function scoutMiniChips(athlete) {
 
 function scoutSentence(athlete, entries) {
   if (athlete.status !== "scored") return "Ainda aguardando os scouts oficiais desse jogador.";
-  if (!entries.length) return "O Cartola registrou a pontuacao, mas nao enviou scouts detalhados para esse jogador.";
+  if (!entries.length) return "O Cartola registrou a pontuação, mas não enviou scouts detalhados para esse jogador.";
   const positives = entries.filter((entry) => entry.tone === "positive").slice(0, 3);
   const negatives = entries.filter((entry) => entry.tone === "negative").slice(0, 2);
   const positiveText = positives.map(scoutPhrase).join(", ");
@@ -219,23 +219,30 @@ function scoutSentence(athlete, entries) {
   return `A pontuacao foi afetada por ${negativeText}.`;
 }
 
-function athleteCard(athlete) {
-  const tags = [];
-  if (athlete.isCaptain) tags.push("capitao");
-  if (athlete.isLuxuryReserve) tags.push("luxo");
-  tags.push(statusLabel(athlete.status));
+function athleteCard(athlete, opts = {}) {
   const key = athleteKey(athlete);
+  const classes = ["athlete-card", `status-${athlete.status || "waiting"}`];
+  if (athlete.isCaptain) classes.push("is-captain");
+  if (athlete.isLuxuryReserve) classes.push("is-luxury");
+  if (opts.replacingName) classes.push("is-sub-in");
+  if (opts.out) classes.push("is-out");
+  const flags = [];
+  if (athlete.isCaptain) flags.push('<span class="atag atag-cap">C · Capitão</span>');
+  if (athlete.isLuxuryReserve) flags.push('<span class="atag atag-luxo">★ Reserva de luxo</span>');
+  if (opts.replacingName) flags.push(`<span class="atag atag-sub">entrou no lugar de ${esc(opts.replacingName)}</span>`);
+  if (opts.out) flags.push('<span class="atag atag-out">Substituído</span>');
   const photo = athlete.photoUrl
     ? `<span class="athlete-photo image" data-initials="${esc(monogram(athlete.name))}" style="background:${avatarBg(athlete.name)}"><img src="${esc(athlete.photoUrl)}" alt="" loading="lazy" /></span>`
     : `<span class="athlete-photo" style="background:${avatarBg(athlete.name)}">${esc(monogram(athlete.name))}</span>`;
   return `
-    <button class="athlete-card status-${esc(athlete.status || "waiting")}" type="button" data-athlete-id="${esc(key)}" aria-label="Ver scouts de ${esc(athlete.name)}">
+    <button class="${classes.join(" ")}" type="button" data-athlete-id="${esc(key)}" aria-label="Ver scouts de ${esc(athlete.name)}">
       ${photo}
       <div class="athlete-main">
         <span class="athlete-pos">${esc(athlete.positionAbbr || "POS")}${athlete.club?.abbr ? ` · ${esc(athlete.club.abbr)}` : ""}</span>
         <strong>${esc(athlete.name)}</strong>
         ${scoutMiniChips(athlete)}
-        <em>${tags.map(esc).join(" · ")}</em>
+        ${flags.length ? `<span class="athlete-flags">${flags.join("")}</span>` : ""}
+        <em>${esc(statusLabel(athlete.status))}</em>
       </div>
       <b>${athlete.points == null ? "-" : fmtPts(athlete.points)}</b>
     </button>`;
@@ -245,7 +252,7 @@ function renderLineup(participant) {
   const lineup = participant.lineup;
   if (!lineup || (!Array.isArray(lineup.starters) && !Array.isArray(lineup.reserves))) {
     currentLineupAthletes = new Map();
-    $("lineupSummary").innerHTML = '<div class="empty compact"><p>Escalacao ainda nao disponivel para esta rodada.</p></div>';
+    $("lineupSummary").innerHTML = '<div class="empty compact"><p>Escalação ainda não disponível para esta rodada.</p></div>';
     $("lineupPitch").innerHTML = "";
     $("benchList").innerHTML = "";
     return;
@@ -256,19 +263,19 @@ function renderLineup(participant) {
   currentLineupAthletes = new Map([...starters, ...reserves].map((athlete) => [athleteKey(athlete), athlete]));
   const played = Number(lineup.playedCount);
   const total = Number(lineup.lineupCount);
-  const progress = Number.isFinite(played) && Number.isFinite(total) && total > 0 ? `${played}/${total} jogadores pontuaram` : "Aguardando pontuacao";
+  const progress = Number.isFinite(played) && Number.isFinite(total) && total > 0 ? `${played}/${total} jogadores pontuaram` : "Aguardando pontuação";
 
   $("lineupSummary").innerHTML = `
     <div>
-      <span>Formacao</span>
-      <strong>${esc(lineup.formation || "Escalacao")}</strong>
+      <span>Formação</span>
+      <strong>${esc(lineup.formation || "Escalação")}</strong>
     </div>
     <div>
       <span>Progresso</span>
       <strong>${esc(progress)}</strong>
     </div>
     <div>
-      <span>Capitao</span>
+      <span>Capitão</span>
       <strong>${esc(lineup.captainName || "-")}</strong>
     </div>`;
 
@@ -277,16 +284,26 @@ function renderLineup(participant) {
     { label: "Meio-campo", items: starters.filter((athlete) => athlete.positionId === 4) },
     { label: "Defesa", items: starters.filter((athlete) => athlete.positionId === 2 || athlete.positionId === 3) },
     { label: "Gol", items: starters.filter((athlete) => athlete.positionId === 1) },
-    { label: "Tecnico", items: starters.filter((athlete) => athlete.positionId === 6) },
+    { label: "Técnico", items: starters.filter((athlete) => athlete.positionId === 6) },
   ].filter((row) => row.items.length);
 
+  const renderStarter = (starter) =>
+    starter.substitutedOut && starter.substitute ? athleteCard(starter.substitute, { replacingName: starter.name }) : athleteCard(starter);
+
   $("lineupPitch").innerHTML = rows
-    .map((row) => `<div class="pitch-row"><span>${row.label}</span><div>${row.items.map(athleteCard).join("")}</div></div>`)
+    .map((row) => `<div class="pitch-row"><span>${row.label}</span><div>${row.items.map(renderStarter).join("")}</div></div>`)
     .join("");
 
-  $("benchList").innerHTML = reserves.length
-    ? `<div class="bench-title">Reservas</div><div class="bench-grid">${reserves.map(athleteCard).join("")}</div>`
-    : "";
+  const benchReserves = reserves.filter((reserve) => !reserve.cameIn);
+  const benchedStarters = starters.filter((starter) => starter.substitutedOut && starter.substitute);
+  const benchParts = [];
+  if (benchReserves.length) {
+    benchParts.push(`<div class="bench-title">Reservas</div><div class="bench-grid">${benchReserves.map((athlete) => athleteCard(athlete)).join("")}</div>`);
+  }
+  if (benchedStarters.length) {
+    benchParts.push(`<div class="bench-title">Saíram (substituídos)</div><div class="bench-grid">${benchedStarters.map((starter) => athleteCard(starter, { out: true })).join("")}</div>`);
+  }
+  $("benchList").innerHTML = benchParts.join("");
 }
 
 function renderScoutPhoto(athlete) {
@@ -310,8 +327,8 @@ function openScoutModal(athleteId) {
   const modal = $("scoutModal");
   renderScoutPhoto(athlete);
   $("scoutModalName").textContent = athlete.name || "Atleta";
-  $("scoutModalMeta").textContent = `${athlete.position || athlete.positionAbbr || "Posicao"}${athlete.club?.abbr ? ` - ${athlete.club.abbr}` : ""}`;
-  $("scoutModalStatus").textContent = [athlete.isCaptain ? "capitao" : "", athlete.isLuxuryReserve ? "reserva de luxo" : "", statusLabel(athlete.status)].filter(Boolean).join(" - ");
+  $("scoutModalMeta").textContent = `${athlete.position || athlete.positionAbbr || "Posição"}${athlete.club?.abbr ? ` - ${athlete.club.abbr}` : ""}`;
+  $("scoutModalStatus").textContent = [athlete.isCaptain ? "capitão" : "", athlete.isLuxuryReserve ? "reserva de luxo" : "", statusLabel(athlete.status)].filter(Boolean).join(" - ");
   $("scoutModalPoints").textContent = athlete.points == null ? "-" : fmtPts(athlete.points);
   $("scoutModalNote").textContent = scoutSentence(athlete, entries);
   $("scoutModalChips").innerHTML = entries.length
@@ -347,8 +364,8 @@ function closeScoutModal() {
 
 function shareText(participant, state) {
   const cfg = state.config || {};
-  const round = participant.currentRoundPoints == null ? "sem pontuacao na rodada" : `${fmtPts(participant.currentRoundPoints)} pts na rodada`;
-  return `${teamName(participant)} (${ownerName(participant)}) na ${cfg.titulo || "Liga Rua do Comercio"}: #${participant.rank || "-"} com ${fmtPts(participant.pontos)} pts, ${round}.`;
+  const round = participant.currentRoundPoints == null ? "sem pontuação na rodada" : `${fmtPts(participant.currentRoundPoints)} pts na rodada`;
+  return `${teamName(participant)} (${ownerName(participant)}) na ${cfg.titulo || "Liga Rua do Comércio"}: #${participant.rank || "-"} com ${fmtPts(participant.pontos)} pts, ${round}.`;
 }
 
 function renderShareCard(participant, state) {
@@ -356,19 +373,153 @@ function renderShareCard(participant, state) {
   $("profileShareText").textContent = shareText(participant, state);
 }
 
+function renderCaptainHistory(state, participant) {
+  const section = $("captainSection");
+  const summary = $("captainSummary");
+  const list = $("captainList");
+  if (!section || !summary || !list) return;
+  const history = Array.isArray(state.history) ? state.history : [];
+  const me = history.find((h) => h.participantId === participant.id);
+  const entries = ((me && me.scores) || []).filter((s) => s.captain && s.captain.name).sort((a, b) => a.roundId - b.roundId);
+  if (!entries.length) {
+    section.hidden = true;
+    return;
+  }
+  section.hidden = false;
+  const withPts = entries.filter((s) => s.captain.points != null);
+  const best = withPts.slice().sort((a, b) => b.captain.points - a.captain.points)[0];
+  const bonus = withPts.reduce((sum, s) => sum + s.captain.points * 0.5, 0);
+  summary.innerHTML = `
+    <div><span>Melhor capitão</span><strong>${best ? esc(best.captain.name) : "-"}</strong></div>
+    <div><span>Maior pontuação</span><strong>${best && best.captain.points != null ? fmtPts(best.captain.points) : "-"}</strong></div>
+    <div><span>Bônus de braçadeira</span><strong>${fmtPts(bonus)} pts</strong></div>`;
+  list.innerHTML = entries
+    .map(
+      (s) => `
+      <div class="captain-row">
+        <span>R${esc(s.roundId)}</span>
+        <strong>${esc(s.captain.name)}</strong>
+        <b>${s.captain.points == null ? "-" : fmtPts(s.captain.points)}</b>
+      </div>`
+    )
+    .join("");
+}
+
+function buildH2H(state, a, b) {
+  const history = Array.isArray(state.history) ? state.history : [];
+  const sa = new Map((((history.find((h) => h.participantId === a.id) || {}).scores) || []).map((s) => [s.roundId, Number(s.points) || 0]));
+  const sb = new Map((((history.find((h) => h.participantId === b.id) || {}).scores) || []).map((s) => [s.roundId, Number(s.points) || 0]));
+  const rounds = [...new Set([...sa.keys(), ...sb.keys()])].sort((x, y) => x - y);
+  let winsA = 0;
+  let winsB = 0;
+  let ties = 0;
+  const rows = rounds.map((r) => {
+    const va = sa.has(r) ? sa.get(r) : null;
+    const vb = sb.has(r) ? sb.get(r) : null;
+    let outcome = "na";
+    if (va != null && vb != null) {
+      if (va > vb) {
+        winsA += 1;
+        outcome = "a";
+      } else if (vb > va) {
+        winsB += 1;
+        outcome = "b";
+      } else {
+        ties += 1;
+        outcome = "tie";
+      }
+    }
+    return { r, va, vb, outcome };
+  });
+  return { rows, winsA, winsB, ties, totalA: Number(a.totalPoints ?? a.pontos) || 0, totalB: Number(b.totalPoints ?? b.pontos) || 0 };
+}
+
+let h2hOpponentId = null;
+
+function renderH2HResult(state, participant) {
+  const result = $("h2hResult");
+  const opponent = (state.participants || []).find((p) => p.id === h2hOpponentId);
+  if (!result || !opponent) return;
+  const h = buildH2H(state, participant, opponent);
+  result.innerHTML = `
+    <div class="h2h-board glass">
+      <div class="h2h-side${h.winsA >= h.winsB ? " lead" : ""}">
+        <strong>${esc(teamName(participant))}</strong>
+        <span>${fmtPts(h.totalA)} pts</span>
+      </div>
+      <div class="h2h-score"><b>${h.winsA}</b><i>x</i><b>${h.winsB}</b><em>${h.ties} empate(s)</em></div>
+      <div class="h2h-side${h.winsB > h.winsA ? " lead" : ""}">
+        <strong>${esc(teamName(opponent))}</strong>
+        <span>${fmtPts(h.totalB)} pts</span>
+      </div>
+    </div>
+    ${
+      h.rows.length
+        ? `<div class="h2h-rounds">${h.rows
+            .map(
+              (row) => `
+        <div class="h2h-round">
+          <span class="h2h-r">R${esc(row.r)}</span>
+          <b class="${row.outcome === "a" ? "win" : ""}">${row.va == null ? "-" : fmtPts(row.va)}</b>
+          <i>x</i>
+          <b class="${row.outcome === "b" ? "win" : ""}">${row.vb == null ? "-" : fmtPts(row.vb)}</b>
+        </div>`
+            )
+            .join("")}</div>`
+        : '<div class="empty compact"><p>Sem rodadas em comum para comparar ainda.</p></div>'
+    }`;
+}
+
+function h2hPrompt() {
+  return '<div class="h2h-empty"><p>Escolha um adversário acima para ver o confronto rodada a rodada.</p></div>';
+}
+
+function renderHeadToHead(state, participant) {
+  const section = $("h2hSection");
+  const select = $("h2hSelect");
+  const result = $("h2hResult");
+  if (!section || !select || !result) return;
+  const opponents = (Array.isArray(state.participants) ? state.participants : []).filter((p) => p.id !== participant.id);
+  if (!opponents.length) {
+    section.hidden = true;
+    return;
+  }
+  section.hidden = false;
+  // Nada de confronto automatico: comeca sem ninguem escolhido e so carrega ao escolher.
+  h2hOpponentId = null;
+  select.innerHTML =
+    '<option value="">Escolha um adversário…</option>' +
+    opponents.map((p) => `<option value="${esc(p.id)}">#${p.rank || "-"} ${esc(teamName(p))}</option>`).join("");
+  select.value = "";
+  result.innerHTML = h2hPrompt();
+  select.onchange = () => {
+    h2hOpponentId = select.value || null;
+    if (!h2hOpponentId) {
+      result.innerHTML = h2hPrompt();
+      return;
+    }
+    renderH2HResult(state, participant);
+  };
+}
+
 function render(state) {
   const participants = Array.isArray(state.participants) ? state.participants : [];
   const requestedId = new URLSearchParams(location.search).get("id");
-  const participant = participants.find((p) => p.id === requestedId) || participants[0];
+  // Se veio um id na URL, nao caia no lider silenciosamente quando ele nao
+  // existir (ex.: participante que saiu da liga, mas ainda aparece em mitadas).
+  const participant = requestedId ? participants.find((p) => p.id === requestedId) : participants[0];
   currentParticipant = participant;
   currentState = state;
 
   const cfg = state.config || {};
-  $("profileFooter").textContent = cfg.titulo || "Liga Rua do Comercio";
-  document.title = participant ? `${teamName(participant)} · ${cfg.titulo || "Liga Rua do Comercio"}` : cfg.titulo || "Liga Rua do Comercio";
+  $("profileFooter").textContent = cfg.titulo || "Liga Rua do Comércio";
+  document.title = participant ? `${teamName(participant)} · ${cfg.titulo || "Liga Rua do Comércio"}` : cfg.titulo || "Liga Rua do Comércio";
 
   if (!participant) {
-    $("profileApp").innerHTML = '<div class="empty"><p>Nenhum participante publicado ainda.</p></div>';
+    const message = requestedId
+      ? 'Esse participante não está mais na liga ativa. <a href="/">Voltar à classificação</a>.'
+      : "Nenhum participante publicado ainda.";
+    $("profileApp").innerHTML = `<div class="empty"><p>${message}</p></div>`;
     return;
   }
 
@@ -380,8 +531,10 @@ function render(state) {
   $("profileRound").textContent = participant.currentRoundPoints == null ? "-" : fmtPts(participant.currentRoundPoints);
   $("profileAverage").textContent = participant.average == null ? "-" : fmtPts(participant.average);
   $("profileBest").textContent = participant.bestRound == null ? "-" : fmtPts(participant.bestRound);
-  renderRivals(participant);
   renderLineup(participant);
+  renderCaptainHistory(state, participant);
+  renderRivals(participant);
+  renderHeadToHead(state, participant);
   renderBadges(participant);
   renderHistory(state, participant);
   renderShareCard(participant, state);
@@ -393,7 +546,7 @@ async function load() {
     if (!r.ok) throw new Error("Erro ao carregar");
     render(await r.json());
   } catch (e) {
-    $("profileApp").innerHTML = '<div class="empty"><p>Nao foi possivel carregar o perfil agora.</p></div>';
+    $("profileApp").innerHTML = '<div class="empty"><p>Não foi possível carregar o perfil agora.</p></div>';
   }
 }
 
@@ -417,7 +570,7 @@ async function downloadProfileCard() {
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.fillStyle = "#f4cd6b";
   ctx.font = "700 42px Arial";
-  ctx.fillText(currentState.config?.titulo || "Liga Rua do Comercio", 72, 112);
+  ctx.fillText(currentState.config?.titulo || "Liga Rua do Comércio", 72, 112);
   ctx.fillStyle = "#eef5f0";
   ctx.font = "900 82px Arial";
   wrapCanvasText(ctx, teamName(currentParticipant), 72, 230, 900, 88);
@@ -434,7 +587,7 @@ async function downloadProfileCard() {
   wrapCanvasText(ctx, shareText(currentParticipant, currentState), 72, 820, 920, 48);
   ctx.fillStyle = "#f4cd6b";
   ctx.font = "700 34px Arial";
-  ctx.fillText("A Copa e mundial. A resenha e local.", 72, 1240);
+  ctx.fillText("A Copa é mundial. A resenha é local.", 72, 1240);
   const filename = `${teamName(currentParticipant).toLowerCase().replace(/[^a-z0-9]+/g, "-") || "participante"}-card.png`;
   await shareCanvasOrWhatsApp(canvas, filename, `Card de ${teamName(currentParticipant)}`, shareText(currentParticipant, currentState), $("shareProfileNote"));
 }

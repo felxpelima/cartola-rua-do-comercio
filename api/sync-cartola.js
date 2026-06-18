@@ -33,7 +33,10 @@ function one(value) {
 function hasCronSecret(req) {
   const expected = process.env.CRON_SECRET;
   if (!expected) return false;
-  const provided = one(req.query.secret) || req.headers["x-cron-secret"] || req.headers["X-Cron-Secret"];
+  const auth = req.headers.authorization || req.headers.Authorization || "";
+  const bearer = auth.startsWith("Bearer ") ? auth.slice(7) : null;
+  // O Vercel Cron envia automaticamente `Authorization: Bearer <CRON_SECRET>`.
+  const provided = one(req.query.secret) || req.headers["x-cron-secret"] || req.headers["X-Cron-Secret"] || bearer;
   return provided === expected;
 }
 

@@ -67,7 +67,10 @@ export default async function handler(req, res) {
   if (req.method === "GET") {
     try {
       const state = await getState();
-      res.setHeader("Cache-Control", "no-store");
+      // Liga de amigos: a home faz polling a cada 60s e recarrega no foco.
+      // Um cache curto na CDN da Vercel corta a maior parte das idas ao banco
+      // sem o organizador perceber atraso relevante após salvar/sincronizar.
+      res.setHeader("Cache-Control", "public, max-age=0, s-maxage=15, stale-while-revalidate=45");
       return res.status(200).json(state);
     } catch (e) {
       return res.status(500).json({ error: "Erro ao ler os dados" });

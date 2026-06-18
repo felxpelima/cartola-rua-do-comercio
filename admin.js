@@ -116,7 +116,9 @@ function logout() {
 
 async function enterPanel() {
   try {
-    const response = await fetch("/api/data", { cache: "no-store" });
+    // Cache-busting: o /api/data publico tem cache curto de CDN; o admin
+    // precisa sempre do estado recem-salvo, entao furamos o cache do edge.
+    const response = await fetch(`/api/data?t=${Date.now()}`, { cache: "no-store" });
     const data = await response.json();
     state = {
       participants: Array.isArray(data.participants) ? data.participants : [],

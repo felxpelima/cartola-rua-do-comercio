@@ -10,17 +10,27 @@ let firstRender = true;
 let currentState = null;
 let html2canvasPromise = null;
 
+const CROWN_SVG = '<svg class="pod-crown" viewBox="0 0 24 24" fill="#f4cd6b" aria-hidden="true"><path d="M2 8l4.5 3L12 4l5.5 7L22 8l-2.2 11.2a1 1 0 0 1-1 .8H5.2a1 1 0 0 1-1-.8L2 8z"/></svg>';
+
+function sessionFlag(key) {
+  try {
+    return typeof sessionStorage !== "undefined" && sessionStorage.getItem(key);
+  } catch (e) {
+    return null;
+  }
+}
+function setSessionFlag(key) {
+  try {
+    if (typeof sessionStorage !== "undefined") sessionStorage.setItem(key, "1");
+  } catch (e) {
+    /* sessionStorage indisponivel */
+  }
+}
+
 function hashHue(str) {
   let h = 0;
   for (let i = 0; i < str.length; i++) h = str.charCodeAt(i) + ((h << 5) - h);
   return Math.abs(h) % 360;
-}
-
-function normalizeText(value) {
-  return String(value || "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase();
 }
 
 function teamName(participant) {
@@ -136,7 +146,7 @@ function renderPrizes(config, participants) {
   $("chipN").textContent = count;
   $("chipValor").textContent = fmtBRL(entryValue);
 
-  const labels = ["Campeao", "Vice", "Terceiro"];
+  const labels = ["Campeão", "Vice", "Terceiro"];
   $("prizes").innerHTML = [0, 1, 2]
     .map(
       (index) => `
@@ -166,7 +176,7 @@ function renderRanking(participants) {
   if (participants.length === 0) {
     podiumEl.style.display = "none";
     podiumEl.innerHTML = "";
-    listEl.innerHTML = '<div class="empty"><div class="e-ico">0</div><p>A classificacao ainda nao foi publicada.</p></div>';
+    listEl.innerHTML = '<div class="empty"><div class="e-ico">0</div><p>A classificação ainda não foi publicada.</p></div>';
     return;
   }
 
@@ -185,6 +195,7 @@ function renderRanking(participants) {
         return `
         <div class="podium-col m${place} ${first ? "first" : ""}">
           <a class="pod-profile" href="${profileHref(participant)}">
+            ${first ? CROWN_SVG : ""}
             <div class="pod-avatar-wrap">
               ${avatarMarkup(participant, "pod-avatar")}
               <span class="pod-badge">${place}</span>
@@ -193,25 +204,57 @@ function renderRanking(participants) {
             <div class="pod-meta">${esc(ownerName(participant))}${compactPlayedMarkup(participant)}</div>
           </a>
           <div class="pod-pts">${fmtPts(participant.pontos)}<span>pts</span></div>
-          <div class="pod-block" style="height:${heights[index]}px;animation-delay:${index * 90}ms"><b>${place}</b></div>
+          <div class="pod-block${firstRender ? " anim" : ""}" style="height:${heights[index]}px${firstRender ? `;animation-delay:${index * 90}ms` : ""}"><b>${place}</b></div>
         </div>`;
       })
       .join("");
     restStart = 3;
     rest = ranked.slice(3);
+    if (firstRender && window.fxConfetti && !sessionFlag("fx_welcomed")) {
+      setSessionFlag("fx_welcomed");
+      setTimeout(() => window.fxConfetti({ y: (window.innerHeight || 700) * 0.3 }), 360);
+    }
   } else {
     podiumEl.style.display = "none";
     podiumEl.innerHTML = "";
   }
 
-  listEl.innerHTML = rest.map((participant, index) => rankingRow(participant, restStart + index + 1, maxPts, index)).join("");
+  listEl.innerHTML = rest.map((participant, index) => rankingRow(participant, restStart + index + 1, maxPts, index, { animate: firstRender })).join("");
+}
+
+function isPartialParticipant(participant) {
+  const played = Number(participant.playedCount);
+  const total = Number(participant.lineupCount);
+  return participant.source === "cartola" && Number.isFinite(played) && Number.isFinite(total) && total > 0 && played < total;
+}
+
+function roundLiveInfo(state) {
+  const list = Array.isArray(state?.roundRanking) ? state.roundRanking : [];
+  let live = false;
+  let played = 0;
+  let total = 0;
+  for (const participant of list) {
+    if (!Number.isFinite(Number(participant.lineupCount)) || Number(participant.lineupCount) <= 0) continue;
+    played += Number(participant.playedCount) || 0;
+    total += Number(participant.lineupCount) || 0;
+    if (isPartialParticipant(participant)) live = true;
+  }
+  return { live, played, total };
 }
 
 function rankingRow(participant, rank, maxPts, index = 0, options = {}) {
   const width = ((Number(participant.pontos) || 0) / maxPts) * 100;
-  const rowClass = options.share ? "row share-row" : "row";
+  const partial = options.live && !options.share && isPartialParticipant(participant);
+  const classes = ["row"];
+  if (options.share) classes.push("share-row");
+  if (options.animate) classes.push("anim");
+  if (partial) classes.push("live-row");
+  const ptsExtra = partial ? '<em class="pts-partial">parcial</em>' : "";
+  const styleBits = [`--team-h:${hashHue(teamName(participant))}`];
+  if (options.animate) styleBits.push(`animation-delay:${index * 35}ms`);
+  const style = ` style="${styleBits.join(";")}"`;
   return `
-    <div class="${rowClass}" style="animation-delay:${index * 35}ms">
+    <div class="${classes.join(" ")}"${style}>
       <span class="rank">${rank}</span>
       <a class="row-profile" href="${profileHref(participant)}">
         ${avatarMarkup(participant, "row-avatar", { proxyImages: options.proxyImages, eager: options.eagerImages })}
@@ -224,19 +267,117 @@ function rankingRow(participant, rank, maxPts, index = 0, options = {}) {
           <div class="bar"><i style="width:${width}%"></i></div>
         </div>
       </a>
-      <div class="pts">${fmtPts(participant.pontos)}<span>pts</span></div>
+      <div class="pts">${fmtPts(participant.pontos)}<span>pts</span>${ptsExtra}</div>
     </div>`;
 }
 
-function renderRoundRanking(roundRanking) {
+function renderRoundRanking(roundRanking, live = false) {
   const list = Array.isArray(roundRanking) ? roundRanking : [];
   if (!list.length) {
-    $("roundList").innerHTML = '<div class="empty compact"><p>A rodada ainda nao tem pontuacao sincronizada.</p></div>';
+    $("roundList").innerHTML = '<div class="empty compact"><p>A rodada ainda não tem pontuação sincronizada.</p></div>';
     return;
   }
 
   const maxPts = Math.max(1, ...list.map((participant) => Number(participant.pontos) || 0));
-  $("roundList").innerHTML = list.map((participant, index) => rankingRow(participant, participant.roundRank || index + 1, maxPts, index)).join("");
+  $("roundList").innerHTML = list.map((participant, index) => rankingRow(participant, participant.roundRank || index + 1, maxPts, index, { animate: firstRender, live })).join("");
+}
+
+let selectedRoundId = null;
+
+function renderLiveState(state, viewingCurrent) {
+  const info = roundLiveInfo(state);
+  const banner = $("liveBanner");
+  if (banner) {
+    const show = viewingCurrent && info.live;
+    banner.hidden = !show;
+    if (show && info.total > 0) {
+      $("liveBannerText").textContent = `Rodada em andamento — ${info.played}/${info.total} em campo. Pontos parciais, atualiza sozinho.`;
+    }
+  }
+  // O dot da aba reflete sempre a rodada atual (mesmo olhando uma passada).
+  const roundTab = document.querySelector('.tab-btn[data-tab="rodada"]');
+  if (roundTab) roundTab.classList.toggle("is-live", info.live);
+  return info;
+}
+
+function currentRoundId(state) {
+  const id = state && state.currentRound ? state.currentRound.id : null;
+  return id == null ? null : Number(id);
+}
+
+function roundsWithData(state) {
+  const history = Array.isArray(state.history) ? state.history : [];
+  return [...new Set(history.flatMap((h) => (h.scores || []).map((s) => Number(s.roundId))))].filter((n) => Number.isFinite(n));
+}
+
+function buildRoundRankingFor(state, roundId) {
+  const history = Array.isArray(state.history) ? state.history : [];
+  const byId = new Map((Array.isArray(state.participants) ? state.participants : []).map((p) => [p.id, p]));
+  const entries = [];
+  for (const h of history) {
+    const score = (h.scores || []).find((s) => Number(s.roundId) === Number(roundId));
+    if (!score) continue;
+    const p = byId.get(h.participantId);
+    entries.push({
+      id: h.participantId,
+      nome: (p && p.nome) || h.nome,
+      cartolaTeamName: p && p.cartolaTeamName,
+      cartolaOwnerName: p && p.cartolaOwnerName,
+      escudoUrl: p && p.escudoUrl,
+      pontos: Number(score.points) || 0,
+      totalPoints: p ? p.totalPoints ?? p.pontos : null,
+      playedCount: score.playedCount,
+      lineupCount: score.lineupCount,
+      source: score.source,
+      delta: 0,
+    });
+  }
+  entries.sort((a, b) => b.pontos - a.pontos || String(a.nome).localeCompare(String(b.nome), "pt-BR"));
+  entries.forEach((entry, index) => {
+    entry.roundRank = index + 1;
+  });
+  return entries;
+}
+
+function renderRoundControls(state) {
+  const select = $("roundSelect");
+  const wrap = $("roundSelectWrap");
+  if (!select) return;
+  const curId = currentRoundId(state);
+  const ids = roundsWithData(state).sort((a, b) => b - a);
+  if (ids.length <= 1) {
+    if (wrap) wrap.hidden = true;
+    return;
+  }
+  if (wrap) wrap.hidden = false;
+  const selectedId = selectedRoundId == null ? curId : selectedRoundId;
+  select.innerHTML = ids
+    .map((id) => `<option value="${id}"${id === selectedId ? " selected" : ""}>${id === curId ? `Rodada ${id} (atual)` : `Rodada ${id}`}</option>`)
+    .join("");
+}
+
+function renderRoundSection(state) {
+  renderRoundControls(state);
+  const curId = currentRoundId(state);
+  const viewingId = selectedRoundId == null ? curId : selectedRoundId;
+  const isCurrent = viewingId == null || viewingId === curId;
+  const liveInfo = renderLiveState(state, isCurrent);
+  if (isCurrent) {
+    renderRoundRanking(state.roundRanking, liveInfo.live);
+    renderRoundRecap(state, true);
+  } else {
+    renderRoundRanking(buildRoundRankingFor(state, viewingId), false);
+    renderRoundRecap(state, false);
+  }
+}
+
+function onRoundSelectChange() {
+  const select = $("roundSelect");
+  if (!select || !currentState) return;
+  const val = Number(select.value);
+  const curId = currentRoundId(currentState);
+  selectedRoundId = Number.isFinite(val) && val !== curId ? val : null;
+  renderRoundSection(currentState);
 }
 
 function renderBadges(participants) {
@@ -300,14 +441,14 @@ function scoreSourceLabel(source) {
 function renderMitadas(mitadas) {
   const list = Array.isArray(mitadas) ? mitadas : [];
   if (!list.length) {
-    $("mitadasList").innerHTML = '<div class="empty compact"><p>As mitadas aparecem depois que uma rodada tiver pontuacao salva.</p></div>';
+    $("mitadasList").innerHTML = '<div class="empty compact"><p>As mitadas aparecem depois que uma rodada tiver pontuação salva.</p></div>';
     return;
   }
 
   $("mitadasList").innerHTML = list
     .map(
       (item, index) => `
-      <a class="mitada-card" href="/participant?id=${encodeURIComponent(item.participantId)}" style="animation-delay:${index * 45}ms">
+      <a class="mitada-card${firstRender ? " anim" : ""}" href="/participant?id=${encodeURIComponent(item.participantId)}"${firstRender ? ` style="animation-delay:${index * 45}ms"` : ""}>
         <div class="mitada-round">
           <span>${esc(item.roundName || `Rodada ${item.roundId}`)}</span>
           <b>${Number(item.mitadasCount) > 1 ? `${Number(item.mitadasCount)}x` : "Mito"}</b>
@@ -329,41 +470,11 @@ function renderMitadas(mitadas) {
     .join("");
 }
 
-function renderSearchResults() {
-  if (!currentState || !$("participantSearch") || !$("searchResults")) return;
-  const query = normalizeText($("participantSearch").value);
-  const participants = Array.isArray(currentState.participants) ? currentState.participants : [];
-  if (!query) {
-    $("searchResults").innerHTML = "";
-    return;
-  }
-
-  const matches = participants
-    .filter((participant) => normalizeText(`${participant.nome} ${participant.cartolaTeamName} ${participant.cartolaOwnerName}`).includes(query))
-    .slice(0, 8);
-
-  if (!matches.length) {
-    $("searchResults").innerHTML = '<div class="empty compact"><p>Ninguem encontrado com esse termo.</p></div>';
-    return;
-  }
-
-  $("searchResults").innerHTML = matches
-    .map(
-      (participant) => `
-      <a class="search-result" href="${profileHref(participant)}">
-        ${avatarMarkup(participant, "row-avatar")}
-        <span><strong>#${participant.rank || "-"} ${esc(teamName(participant))}</strong><em>${esc(ownerName(participant))}</em></span>
-        <b>${fmtPts(participant.pontos)}</b>
-      </a>`
-    )
-    .join("");
-}
-
 function roundShareText() {
   const cfg = currentState?.config || {};
   const highlights = Array.isArray(currentState?.highlights) ? currentState.highlights : [];
   const lines = highlights.slice(0, 5).map((item) => `${item.label}: ${item.title} - ${item.body}`);
-  return [`Resenha da ${cfg.titulo || "Liga Rua do Comercio"}`, ...lines].join("\n");
+  return [`Resenha da ${cfg.titulo || "Liga Rua do Comércio"}`, ...lines].join("\n");
 }
 
 function roundRankingShareText() {
@@ -372,7 +483,7 @@ function roundRankingShareText() {
   const ranking = Array.isArray(currentState?.roundRanking) ? currentState.roundRanking : [];
   const lines = ranking
     .map((participant, index) => `#${participant.roundRank || index + 1} ${teamName(participant)} - ${fmtPts(participant.pontos)} pts`);
-  return [`Ranking da ${roundName} - ${cfg.titulo || "Liga Rua do Comercio"}`, ...lines].join("\n");
+  return [`Ranking da ${roundName} - ${cfg.titulo || "Liga Rua do Comércio"}`, ...lines].join("\n");
 }
 
 function openWhatsApp(text) {
@@ -389,7 +500,7 @@ async function shareRound() {
 async function downloadRoundCard() {
   const ranking = Array.isArray(currentState?.roundRanking) ? currentState.roundRanking : [];
   if (!ranking.length) {
-    $("roundShareNote").textContent = "A rodada ainda nao tem ranking para gerar o card.";
+    $("roundShareNote").textContent = "A rodada ainda não tem ranking para gerar o card.";
     return;
   }
 
@@ -401,8 +512,8 @@ async function downloadRoundCard() {
     await shareCanvasOrWhatsApp(canvas, "ranking-rodada.png", "Ranking da rodada", roundRankingShareText(), noteEl);
     return;
   } catch (e) {
-    console.warn("Nao foi possivel gerar o print da tabela.", e);
-    noteEl.textContent = "Nao consegui gerar o print bonito. Vou usar o card simples.";
+    console.warn("Não foi possível gerar o print da tabela.", e);
+    noteEl.textContent = "Não consegui gerar o print bonito. Vou usar o card simples.";
   }
 
   const canvas = renderRoundRankingFallbackCanvas(ranking);
@@ -446,7 +557,7 @@ function buildRoundRankingShareElement(ranking) {
   shot.setAttribute("aria-hidden", "true");
   shot.innerHTML = `
     <div class="share-shot-head">
-      <span class="share-shot-kicker">${esc(cfg.titulo || "Liga Rua do Comercio")}</span>
+      <span class="share-shot-kicker">${esc(cfg.titulo || "Liga Rua do Comércio")}</span>
       <strong>Ranking da rodada</strong>
       <div class="share-shot-meta">
         <span>${esc(roundName)}</span>
@@ -465,7 +576,7 @@ function buildRoundRankingShareElement(ranking) {
         .join("")}
     </div>
     <div class="share-shot-foot">
-      <span>Rua do Comercio</span>
+      <span>Rua do Comércio</span>
       <strong>Cartola Copa 2026</strong>
     </div>`;
   return shot;
@@ -535,7 +646,7 @@ function renderRoundRankingFallbackCanvas(ranking) {
 
   ctx.fillStyle = "#f4cd6b";
   ctx.font = "800 28px Arial";
-  ctx.fillText(cfg.titulo || "Liga Rua do Comercio", 42, 54);
+  ctx.fillText(cfg.titulo || "Liga Rua do Comércio", 42, 54);
   ctx.fillStyle = "#ffffff";
   ctx.font = "900 58px Arial";
   ctx.fillText("Ranking da rodada", 42, 115);
@@ -553,7 +664,7 @@ function renderRoundRankingFallbackCanvas(ranking) {
   ctx.fillRect(0, height - footerHeight, width, footerHeight);
   ctx.fillStyle = "#607268";
   ctx.font = "700 20px Arial";
-  ctx.fillText("Compartilhado pela Liga Rua do Comercio", 42, height - 22);
+  ctx.fillText("Compartilhado pela Liga Rua do Comércio", 42, height - 22);
   ctx.textAlign = "right";
   ctx.fillText("Cartola Copa 2026", width - 42, height - 22);
   ctx.textAlign = "left";
@@ -684,27 +795,142 @@ async function shareCanvasOrWhatsApp(canvas, filename, title, text, noteEl) {
   noteEl.textContent = "Baixei o card e abri o WhatsApp com a legenda.";
 }
 
+function renderRecords(state) {
+  const head = $("recordsHead");
+  const box = $("records");
+  if (!box) return;
+  const participants = Array.isArray(state.participants) ? state.participants : [];
+  const history = Array.isArray(state.history) ? state.history : [];
+  const nameById = new Map(participants.map((p) => [p.id, teamName(p)]));
+  // Rodada em andamento tem pontuacao parcial (baixa): nao deve virar recorde
+  // de "pior rodada". Ela entra nos recordes so depois de fechar.
+  const excludeRoundId = roundLiveInfo(state).live ? currentRoundId(state) : null;
+  const allScores = [];
+  for (const h of history) {
+    for (const s of h.scores || []) {
+      if (excludeRoundId != null && Number(s.roundId) === excludeRoundId) continue;
+      allScores.push({ nome: nameById.get(h.participantId) || h.nome, roundId: s.roundId, points: Number(s.points) || 0 });
+    }
+  }
+  if (!allScores.length || participants.length < 2) {
+    if (head) head.hidden = true;
+    box.hidden = true;
+    box.innerHTML = "";
+    return;
+  }
+  const records = [];
+  const best = allScores.reduce((a, b) => (b.points > a.points ? b : a));
+  records.push({ label: "Maior rodada", value: `${fmtPts(best.points)} pts`, name: `${best.nome} · R${best.roundId}`, tone: "gold" });
+  const worst = allScores.reduce((a, b) => (b.points < a.points ? b : a));
+  records.push({ label: "Pior rodada", value: `${fmtPts(worst.points)} pts`, name: `${worst.nome} · R${worst.roundId}`, tone: "red" });
+  const withAvg = participants.filter((p) => p.average != null);
+  if (withAvg.length) {
+    const bestAvg = withAvg.reduce((a, b) => (Number(b.average) > Number(a.average) ? b : a));
+    records.push({ label: "Melhor média", value: `${fmtPts(bestAvg.average)} pts`, name: teamName(bestAvg), tone: "green" });
+  }
+  const mitadas = Array.isArray(state.mitadas) ? state.mitadas : [];
+  if (mitadas.length) {
+    const topMito = mitadas.reduce((a, b) => (Number(b.mitadasCount) > Number(a.mitadasCount) ? b : a));
+    records.push({ label: "Mais mitadas", value: `${Number(topMito.mitadasCount) || 1}x`, name: teamName(topMito), tone: "green" });
+  }
+  const leader = participants[0];
+  if (leader) records.push({ label: "Maior total", value: `${fmtPts(leader.totalPoints ?? leader.pontos)} pts`, name: teamName(leader), tone: "gold" });
+
+  box.innerHTML = records
+    .map(
+      (r) => `
+      <div class="record-card tone-${esc(r.tone)}">
+        <span>${esc(r.label)}</span>
+        <strong>${esc(r.value)}</strong>
+        <em>${esc(r.name)}</em>
+      </div>`
+    )
+    .join("");
+  if (head) head.hidden = false;
+  box.hidden = false;
+}
+
+function renderRoundRecap(state, show = true) {
+  const box = $("roundRecap");
+  if (!box) return;
+  if (!show) {
+    box.hidden = true;
+    box.innerHTML = "";
+    return;
+  }
+  const highlights = Array.isArray(state.highlights) ? state.highlights : [];
+  const roundRanking = Array.isArray(state.roundRanking) ? state.roundRanking : [];
+  const byCode = (code) => highlights.find((h) => h.code === code);
+  const roundName = state?.currentRound?.nome || "Rodada atual";
+  const parts = [];
+  const hero = byCode("round-hero");
+  if (hero) parts.push(`<b>${esc(hero.title)}</b> mitou com ${esc(hero.value || "a maior pontuação")}.`);
+  const climb = byCode("climb");
+  if (climb) parts.push(`<b>${esc(climb.title)}</b> foi quem mais subiu (${esc(climb.value || "")}).`);
+  const fall = byCode("fall");
+  if (fall) parts.push(`<b>${esc(fall.title)}</b> escorregou na tabela (${esc(fall.value || "")}).`);
+  const lantern = byCode("lantern");
+  if (lantern) parts.push(`Lanterna iluminada: <b>${esc(lantern.title)}</b>.`);
+  if (!roundRanking.length || !parts.length) {
+    box.hidden = true;
+    box.innerHTML = "";
+    return;
+  }
+  box.innerHTML = `<span class="recap-kicker">Resumo da rodada</span><strong>${esc(roundName)}</strong><p>${parts.join(" ")}</p>`;
+  box.hidden = false;
+}
+
+let prevRoundLeaderId = null;
+let mitouTimer = null;
+
+function showMitouAlert(name, pts) {
+  const el = $("mitouAlert");
+  if (!el) return;
+  el.innerHTML = `<span class="mitou-pip"></span><strong>MITOU!</strong> <span>${esc(name)} · ${fmtPts(pts)} pts</span>`;
+  el.hidden = false;
+  requestAnimationFrame(() => el.classList.add("show"));
+  if (window.fxConfetti) window.fxConfetti({ y: 100, count: 64 });
+  clearTimeout(mitouTimer);
+  mitouTimer = setTimeout(() => {
+    el.classList.remove("show");
+    setTimeout(() => {
+      el.hidden = true;
+    }, 420);
+  }, 4200);
+}
+
+function checkMitou(state) {
+  const list = Array.isArray(state.roundRanking) ? state.roundRanking : [];
+  const leader = list[0] || null;
+  const leaderId = leader ? leader.id : null;
+  if (!firstRender && prevRoundLeaderId && leaderId && leaderId !== prevRoundLeaderId) {
+    showMitouAlert(teamName(leader), leader.pontos);
+  }
+  if (leaderId) prevRoundLeaderId = leaderId;
+}
+
 function render(state) {
   currentState = state;
   const config = state.config || {};
   const participants = Array.isArray(state.participants) ? state.participants : [];
   const muralText = String(state.mural || config.mural || "").trim();
 
-  $("titulo").textContent = config.titulo || "Liga Rua do Comercio";
+  $("titulo").textContent = config.titulo || "Liga Rua do Comércio";
   $("subtitulo").textContent = config.subtitulo || "Copa do Mundo 2026";
   $("footer").innerHTML = 'Atualizado pelo organizador <span class="dot">-</span> ' + esc(config.titulo || "");
-  document.title = (config.titulo || "Liga Rua do Comercio") + " · " + (config.subtitulo || "");
+  document.title = (config.titulo || "Liga Rua do Comércio") + " · " + (config.subtitulo || "");
 
   $("roundMural").hidden = !muralText;
   $("roundMuralText").textContent = muralText;
 
   renderPrizes(config, participants);
   renderRanking(participants);
-  renderRoundRanking(state.roundRanking);
+  renderRoundSection(state);
+  checkMitou(state);
   renderHighlights(state.highlights);
   renderMitadas(state.mitadas);
+  renderRecords(state);
   renderBadges(participants);
-  renderSearchResults();
 
   firstRender = false;
 }
@@ -715,12 +941,12 @@ async function load() {
     if (!response.ok) throw new Error("erro");
     render(await response.json());
   } catch (e) {
-    $("lista").innerHTML = '<div class="empty"><div class="e-ico">!</div><p>Nao foi possivel carregar os dados agora. Tente recarregar a pagina.</p></div>';
+    $("lista").innerHTML = '<div class="empty"><div class="e-ico">!</div><p>Não foi possível carregar os dados agora. Tente recarregar a página.</p></div>';
   }
 }
 
 bindTabs();
-if ($("participantSearch")) $("participantSearch").addEventListener("input", renderSearchResults);
+if ($("roundSelect")) $("roundSelect").addEventListener("change", onRoundSelectChange);
 $("shareRoundBtn").addEventListener("click", shareRound);
 $("roundCardBtn").addEventListener("click", downloadRoundCard);
 load();

@@ -1,4 +1,10 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "cleanUrls": true
+  "cleanUrls": true,
+  "crons": [
+    { "path": "/api/sync-cartola", "schedule": "0 23 * * *" }
+  ],
+  "functions": {
+    "api/sync-cartola.js": { "maxDuration": 60 }
+  }
 }

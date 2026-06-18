@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" font-family="'Plus Jakarta Sans','Segoe UI',Arial,sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#07150e"/>
+      <stop offset="0.5" stop-color="#040d09"/>
+      <stop offset="1" stop-color="#030a07"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0" r="0.9">
+      <stop offset="0" stop-color="#2fe08c" stop-opacity="0.22"/>
+      <stop offset="0.6" stop-color="#2fe08c" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="goldGlow" cx="0.5" cy="0.4" r="0.6">
+      <stop offset="0" stop-color="#ffeeb0"/>
+      <stop offset="0.5" stop-color="#f4cd6b"/>
+      <stop offset="1" stop-color="#b88a2c"/>
+    </radialGradient>
+    <linearGradient id="title" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0.3" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#cfe6da"/>
+    </linearGradient>
+    <linearGradient id="goldText" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffe9a6"/>
+      <stop offset="0.55" stop-color="#f4cd6b"/>
+      <stop offset="1" stop-color="#b88a2c"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect width="1200" height="630" fill="url(#glow)"/>
+
+  <!-- linhas de campo -->
+  <circle cx="600" cy="80" r="300" fill="none" stroke="#2fe08c" stroke-opacity="0.07" stroke-width="2"/>
+  <line x1="0" y1="470" x2="1200" y2="470" stroke="#2fe08c" stroke-opacity="0.06" stroke-width="2"/>
+
+  <!-- orbe / troféu -->
+  <g transform="translate(600,196)">
+    <circle r="92" fill="url(#goldGlow)"/>
+    <g transform="translate(-34,-34) scale(2.85)" fill="none" stroke="#4a3408" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/>
+      <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/>
+      <path d="M4 22h16"/>
+      <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/>
+      <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/>
+      <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>
+    </g>
+  </g>
+
+  <text x="600" y="360" text-anchor="middle" font-size="26" font-weight="700" letter-spacing="7" fill="#9bb3a6">LIGA OFICIAL</text>
+  <text x="600" y="452" text-anchor="middle" font-size="92" font-weight="800" letter-spacing="2" fill="url(#title)">LIGA RUA DO COMÉRCIO</text>
+
+  <g transform="translate(600,520)">
+    <rect x="-235" y="-30" width="470" height="56" rx="28" fill="#ffffff" fill-opacity="0.05" stroke="#ffffff" stroke-opacity="0.10"/>
+    <circle cx="-188" cy="-1" r="7" fill="#2fe08c"/>
+    <text x="14" y="8" text-anchor="middle" font-size="24" font-weight="700" letter-spacing="3" fill="#eef5f0">COPA DO MUNDO 2026</text>
+  </g>
+
+  <text x="600" y="592" text-anchor="middle" font-size="26" font-weight="700" fill="url(#goldText)">A Copa é mundial. A resenha é local.</text>
+</svg>

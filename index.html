@@ -3,19 +3,28 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>Liga Rua do Comercio · Copa do Mundo 2026</title>
-  <meta name="description" content="Classificacao, rodada atual, premiacao e resenha da Liga Rua do Comercio no Cartola Copa 2026." />
+  <title>Liga Rua do Comércio · Copa do Mundo 2026</title>
+  <meta name="description" content="Classificação, rodada atual, premiação e resenha da Liga Rua do Comércio no Cartola Copa 2026." />
   <meta name="theme-color" content="#040d09" />
   <meta name="color-scheme" content="dark" />
   <meta property="og:type" content="website" />
-  <meta property="og:title" content="Liga Rua do Comercio" />
-  <meta property="og:description" content="Acompanhe a classificacao e a resenha da Copa do Mundo 2026." />
+  <meta property="og:site_name" content="Liga Rua do Comércio" />
+  <meta property="og:title" content="Liga Rua do Comércio · Copa do Mundo 2026" />
+  <meta property="og:description" content="Acompanhe a classificação, as mitadas e a resenha da Copa do Mundo 2026." />
+  <meta property="og:image" content="/og-cover.svg" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Liga Rua do Comércio · Copa do Mundo 2026" />
+  <meta name="twitter:description" content="Classificação, mitadas e resenha da Copa do Mundo 2026." />
+  <meta name="twitter:image" content="/og-cover.svg" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Anton&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/styles.css?v=mitadas" />
+  <link rel="stylesheet" href="/styles.css?v=fases-128" />
 </head>
 <body>
+  <div class="intro-veil" id="introVeil" aria-hidden="true"></div>
   <div class="bg-grain"></div>
   <div class="bg-beams"></div>
   <div class="bg-pitch"><div class="circle"></div><div class="line"></div></div>
@@ -41,7 +50,7 @@
         </div>
       </div>
 
-      <h1 class="title" id="titulo">Cartola Rua do Comercio</h1>
+      <h1 class="title" id="titulo">Liga Rua do Comércio</h1>
       <div class="subtitle-pill">
         <span class="live-dot"></span>
         <span id="subtitulo">Copa do Mundo 2026</span>
@@ -64,13 +73,22 @@
       </nav>
 
       <section class="tab-panel active" data-panel="geral">
-        <div class="section-head"><span class="sec-kicker">Classificacao</span><h2 class="sec-title">Ranking da liga</h2></div>
+        <div class="section-head"><span class="sec-kicker">Classificação</span><h2 class="sec-title">Ranking da liga</h2></div>
         <div class="podium" id="podium" style="display:none"></div>
         <div class="rank-list" id="lista"></div>
       </section>
 
       <section class="tab-panel" data-panel="rodada">
         <div class="section-head"><span class="sec-kicker">Rodada atual</span><h2 class="sec-title">Quem mitou</h2></div>
+        <label class="field round-pick" id="roundSelectWrap" hidden><span>Ver rodada</span>
+          <select id="roundSelect"></select>
+        </label>
+        <div class="live-banner" id="liveBanner" hidden>
+          <span class="live-pip"></span>
+          <strong>AO VIVO</strong>
+          <span id="liveBannerText">Rodada em andamento — pontos parciais, atualiza sozinho.</span>
+        </div>
+        <div class="recap-card glass" id="roundRecap" hidden></div>
         <div class="round-actions">
           <button class="btn btn-gold" id="shareRoundBtn" type="button">Compartilhar resenha</button>
           <button class="btn btn-ghost" id="roundCardBtn" type="button">Compartilhar card</button>
@@ -80,8 +98,10 @@
       </section>
 
       <section class="tab-panel" data-panel="mitadas">
-        <div class="section-head"><span class="sec-kicker">Historico</span><h2 class="sec-title">Mitadas</h2></div>
+        <div class="section-head"><span class="sec-kicker">Histórico</span><h2 class="sec-title">Mitadas</h2></div>
         <div class="mitada-list" id="mitadasList"></div>
+        <div class="section-head tight" id="recordsHead" hidden><span class="sec-kicker">Hall da fama</span><h2 class="sec-title">Recordes</h2></div>
+        <div class="record-grid" id="records" hidden></div>
       </section>
 
       <section class="tab-panel" data-panel="resenha">
@@ -108,8 +128,10 @@
     <footer class="footer" id="footer">Atualizado pelo organizador</footer>
   </div>
 
+  <div class="mitou-alert" id="mitouAlert" hidden></div>
   <button id="backToTop" class="back-to-top" type="button" aria-label="Voltar ao topo" title="Voltar ao topo" disabled>&uarr;</button>
   <script src="/back-to-top.js?v=back-top"></script>
-  <script src="/landing.js?v=mitadas"></script>
+  <script src="/anim.js?v=fases-128"></script>
+  <script src="/landing.js?v=fases-128"></script>
 </body>
 </html>
