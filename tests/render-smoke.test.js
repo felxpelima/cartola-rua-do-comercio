@@ -200,6 +200,15 @@ test("landing.js renders records, recap and live state without error", async () 
   assert.equal(els.get("roundSelectWrap").hidden, false);
   assert.match(html(els, "roundSelect"), /Rodada 3 \(atual\)/);
   assert.match(html(els, "roundSelect"), /Rodada 1/);
+  // Estado normal (sync "partial"): banner de manutenção escondido.
+  assert.equal(els.get("maintenanceBanner").hidden, true);
+});
+
+test("landing.js shows the maintenance banner when the last sync is unavailable", async () => {
+  const state = richState();
+  state.lastSync = { status: "unavailable", finishedAt: new Date().toISOString() };
+  const els = await runScript("landing.js", state, "");
+  assert.equal(els.get("maintenanceBanner").hidden, false);
 });
 
 test("participant.js renders lineup, head-to-head picker and captains without error", async () => {

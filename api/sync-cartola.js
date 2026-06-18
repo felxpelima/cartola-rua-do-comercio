@@ -86,15 +86,34 @@ export default async function handler(req, res) {
       message: "Sincronização iniciada.",
     });
 
-    const [status, rounds, matches] = await Promise.all([
-      getCartolaStatus(competition),
-      getCartolaRounds(competition),
-      getCartolaMatches(competition),
-    ]);
+    let status, rounds, matches;
+    try {
+      [status, rounds, matches] = await Promise.all([
+        getCartolaStatus(competition),
+        getCartolaRounds(competition),
+        getCartolaMatches(competition),
+      ]);
+    } catch (e) {
+      // Cartola fora do ar / em manutenção: não é falha da nossa app. Responde 200
+      // (com ok:false) para o cron externo não contar como erro e acabar desativando
+      // o job. Nada é apagado: os dados da última sincronização válida continuam.
+      const finished = await finishSyncRun(run.id, {
+        status: "unavailable",
+        message: "Cartola indisponível ou em manutenção. Nada sincronizado; dados anteriores preservados.",
+        details: { error: e.message || "Cartola indisponível" },
+      });
+      return res.status(200).json({ ok: false, sync: finished });
+    }
 
     const roundId = roundFromRequest(req, status);
     if (!roundId) {
-      throw new Error("O Cartola não informou a rodada atual.");
+      // Mercado em manutenção costuma não informar a rodada atual: trata como soft.
+      const finished = await finishSyncRun(run.id, {
+        status: "unavailable",
+        message: "O Cartola não informou a rodada atual (mercado pode estar em manutenção).",
+        details: { error: "rodada atual indisponível" },
+      });
+      return res.status(200).json({ ok: false, sync: finished });
     }
 
     await Promise.all([
@@ -210,7 +229,10 @@ export default async function handler(req, res) {
       },
     });
 
-    return res.status(finalStatus === "error" ? 502 : 200).json({ ok: finalStatus !== "error", sync: finished });
+    // Sempre 200: a sincronização rodou e foi registrada (com ok:false quando deu
+    // ruim). Assim o cron externo não trata uma rodada problemática como falha de
+    // HTTP e acaba desativando o job. Os detalhes do erro ficam no corpo/SyncRun.
+    return res.status(200).json({ ok: finalStatus !== "error", sync: finished });
   } catch (e) {
     if (run) {
       await finishSyncRun(run.id, {

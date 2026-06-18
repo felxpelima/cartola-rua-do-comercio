@@ -917,6 +917,16 @@ function checkMitou(state) {
   if (leaderId) prevRoundLeaderId = leaderId;
 }
 
+function renderMaintenance(state) {
+  const banner = $("maintenanceBanner");
+  if (!banner) return;
+  // "unavailable" é o status que o sync grava quando o Cartola está em manutenção
+  // ou fora do ar. Assim que uma sync voltar a dar certo, o status muda e o banner
+  // some sozinho. (status_mercado "4" = manutenção, como sinal extra.)
+  const maintenance = state?.lastSync?.status === "unavailable" || String(state?.currentRound?.status ?? "") === "4";
+  banner.hidden = !maintenance;
+}
+
 function render(state) {
   currentState = state;
   const config = state.config || {};
@@ -931,6 +941,7 @@ function render(state) {
   $("roundMural").hidden = !muralText;
   $("roundMuralText").textContent = muralText;
 
+  renderMaintenance(state);
   renderPrizes(config, participants);
   renderRanking(participants);
   renderRoundSection(state);

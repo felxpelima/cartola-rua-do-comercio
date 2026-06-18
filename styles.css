@@ -3045,3 +3045,38 @@ body::before {
 .round-pick { margin: -2px 0 14px; max-width: 280px; }
 .round-pick[hidden] { display: none; }
 .round-pick select { cursor: pointer; }
+
+/* ---------- Banner de manutenção do Cartola ---------- */
+.maintenance-banner {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin: 10px 0 2px;
+  padding: 12px 15px;
+  border: 1px solid rgba(244, 180, 90, 0.42);
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(244, 180, 90, 0.16), rgba(255, 255, 255, 0.03));
+}
+.maintenance-banner[hidden] { display: none; }
+.mb-pip {
+  flex: 0 0 auto;
+  font-size: 18px;
+  line-height: 1;
+}
+.mb-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.mb-text strong {
+  color: #f4b45a;
+  font-family: var(--display);
+  font-size: 15px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+.mb-text span {
+  color: var(--ink-dim);
+  font-size: 12.5px;
+  line-height: 1.35;
+}
