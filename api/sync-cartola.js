@@ -8,6 +8,7 @@ import {
   getCartolaScoredAthletes,
   getCartolaStatus,
   getCartolaTeamById,
+  roundHasStarted,
 } from "../lib/cartola.js";
 import {
   createSyncRun,
@@ -123,18 +124,23 @@ export default async function handler(req, res) {
       upsertRoundsFromCartola(rounds, matches, status),
     ]);
 
-    // status_mercado: 1 = mercado ABERTO = a rodada ainda NÃO começou. Nesse estado
-    // o Cartola devolve a pontuação da rodada ANTERIOR (dado velho); se gravarmos,
-    // os pontos da rodada passada são duplicados na rodada nova. Então não pontuamos
-    // com o mercado aberto — só quando a rodada está fechada/em andamento.
+    // A rodada ainda NÃO começou? Nesse estado o Cartola devolve a pontuação da
+    // rodada ANTERIOR (dado velho); se gravarmos, os pontos da rodada passada são
+    // duplicados na rodada nova. Duas evidências, qualquer uma trava a gravação:
+    //   1. status_mercado === 1 (mercado aberto).
+    //   2. nenhuma partida da rodada começou (olhando /partidas) — mais confiável
+    //      que o status, principalmente na Copa e na janela entre o fim de uma
+    //      rodada e a abertura do mercado da próxima, onde a `rodada_atual` já
+    //      avançou mas o status não é exatamente 1.
     const marketStatus = Number(status.status_mercado);
-    if (marketStatus === 1) {
+    const started = roundHasStarted(matches, roundId);
+    if (marketStatus === 1 || started === false) {
       // Sem `roundId` no topo de propósito: assim o site continua mostrando a
       // última rodada COM pontos (a anterior) até a nova rodada de fato começar.
       const finished = await finishSyncRun(run.id, {
         status: "not_started",
-        message: `Mercado aberto: a rodada ${roundId} ainda não começou. Pontuação não gravada (evita duplicar a rodada anterior).`,
-        details: { roundId, marketStatus },
+        message: `A rodada ${roundId} ainda não começou. Pontuação não gravada (evita duplicar a rodada anterior).`,
+        details: { roundId, marketStatus, roundStarted: started },
       });
       return res.status(200).json({ ok: true, sync: finished });
     }

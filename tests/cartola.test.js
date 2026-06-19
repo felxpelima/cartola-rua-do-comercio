@@ -6,9 +6,11 @@ import {
   calculateCartolaPartialSnapshot,
   cartolaUrl,
   extractCartolaRoundPoints,
+  matchHasStarted,
   normalizeCartolaTeam,
   normalizeLineupSnapshot,
   normalizeStoredLineupSnapshot,
+  roundHasStarted,
 } from "../lib/cartola.js";
 
 test("cartolaUrl applies Copa prefix only for Copa competition", () => {
@@ -219,6 +221,47 @@ test("calculateCartolaPartialPoints does not use luxury reserve while starter po
   };
 
   assert.equal(calculateCartolaPartialPoints(teamPayload, scoredPayload, matchesPayload), 0);
+});
+
+test("matchHasStarted treats only pre-game matches as not started", () => {
+  // Pré-jogo: nenhum sinal de início.
+  assert.equal(matchHasStarted({ periodo_tr: "PRE_JOGO", status_transmissao_tr: "CRIADA" }), false);
+  assert.equal(matchHasStarted({ periodo_tr: "", status_transmissao_tr: "AGENDADA", status_cronometro_tr: "PROGRAMADO" }), false);
+  assert.equal(matchHasStarted({}), false);
+  // Em andamento ou encerrada.
+  assert.equal(matchHasStarted({ periodo_tr: "PRIMEIRO_TEMPO" }), true);
+  assert.equal(matchHasStarted({ status_transmissao_tr: "EM_ANDAMENTO" }), true);
+  assert.equal(matchHasStarted({ status_cronometro_tr: "ENCERRADO" }), true);
+  assert.equal(matchHasStarted({ placar_oficial_mandante: 0, placar_oficial_visitante: 0 }), true);
+});
+
+test("roundHasStarted blocks scoring until a match of the requested round kicks off", () => {
+  const notStarted = {
+    rodada: 2,
+    partidas: [
+      { clube_casa_id: 1, clube_visitante_id: 2, periodo_tr: "PRE_JOGO", status_transmissao_tr: "CRIADA" },
+      { clube_casa_id: 3, clube_visitante_id: 4, periodo_tr: "", status_transmissao_tr: "AGENDADA" },
+    ],
+  };
+  assert.equal(roundHasStarted(notStarted, 2), false);
+
+  const started = {
+    rodada: 2,
+    partidas: [
+      { clube_casa_id: 1, clube_visitante_id: 2, periodo_tr: "PRE_JOGO" },
+      { clube_casa_id: 3, clube_visitante_id: 4, periodo_tr: "SEGUNDO_TEMPO" },
+    ],
+  };
+  assert.equal(roundHasStarted(started, 2), true);
+});
+
+test("roundHasStarted returns null when it cannot tell (no matches or different round)", () => {
+  assert.equal(roundHasStarted(null, 2), null);
+  assert.equal(roundHasStarted({ rodada: 2, partidas: [] }, 2), null);
+  // Partidas de outra rodada (ex.: admin re-sincronizando rodada passada): não bloqueia.
+  assert.equal(roundHasStarted({ rodada: 5, partidas: [{ periodo_tr: "PRE_JOGO" }] }, 2), null);
+  // Sem roundId informado, ainda dá pra responder com base nas partidas.
+  assert.equal(roundHasStarted({ rodada: 2, partidas: [{ periodo_tr: "PRE_JOGO" }] }), false);
 });
 
 test("normalizeLineupSnapshot exposes starters, reserves, captain and partial status", () => {
