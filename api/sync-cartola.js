@@ -156,6 +156,13 @@ export default async function handler(req, res) {
       });
     }
 
+    // Em viradas de rodada o /atletas/pontuados pode vir atrasado (ainda da
+    // rodada anterior). Só usamos se for desta rodada; senão a parcial seria
+    // calculada com pontuações velhas.
+    const scoredRound = Number(scoredAthletes?.rodada ?? scoredAthletes?.rodada_id);
+    const scoredForRound =
+      !Number.isFinite(scoredRound) || scoredRound === roundId ? scoredAthletes : null;
+
     const participants = await getParticipantsForSync();
     if (!participants.length) {
       const finished = await finishSyncRun(run.id, {
@@ -172,8 +179,8 @@ export default async function handler(req, res) {
       try {
         const payload = await getCartolaTeamById(participant.cartolaTimeId, roundId, competition, { timeoutMs: 7000 });
         await saveRawPayload(endpoint, `${competition}:team:${participant.cartolaTimeId}:round:${roundId}`, 200, payload);
-        const snapshot = extractCartolaRoundSnapshot(payload, scoredAthletes, matches);
-        const rawPayload = buildRoundScoreRawPayload(payload, scoredAthletes, matches);
+        const snapshot = extractCartolaRoundSnapshot(payload, scoredForRound, matches);
+        const rawPayload = buildRoundScoreRawPayload(payload, scoredForRound, matches);
         const points = snapshot?.points ?? null;
         if (points == null) {
           return {
