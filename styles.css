@@ -1899,7 +1899,7 @@ textarea:focus { border-color: rgba(47, 224, 140, 0.55); box-shadow: 0 0 0 3px r
 .bet-side.side-b .bet-avatar { border-color: var(--emerald); }
 .bet-side.lead .bet-avatar { box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.1), 0 4px 14px rgba(0, 0, 0, 0.35); }
 
-/* ===== Tratamento de CAMPEÃO da aposta encerrada =====
+/* ===== Tratamento de Campeão da aposta encerrada =====
    Raios girando + halo pulsante + coroa flutuante com faíscas + selo com brilho
    passando, e o lado perdedor esmaecido pra o vencedor saltar aos olhos. */
 .bet-side.winner {
