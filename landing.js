@@ -999,6 +999,511 @@ function renderRaioX(state, show = true) {
   box.hidden = false;
 }
 
+// ---------- Duelo (comparativo completo entre dois cartoleiros) ----------
+let duelAId = null;
+let duelBId = null;
+
+function participantScores(state, id) {
+  const history = Array.isArray(state.history) ? state.history : [];
+  const entry = history.find((h) => h.participantId === id);
+  return Array.isArray(entry && entry.scores) ? entry.scores : [];
+}
+
+function summarizeScores(scores) {
+  const pts = scores.map((s) => Number(s.points) || 0);
+  const best = pts.length ? Math.max(...pts) : null;
+  const worst = pts.length ? Math.min(...pts) : null;
+  // Bônus de braçadeira: capitão conta x1,5, ou seja, soma meia pontuação dele.
+  const captainBonus = scores.reduce((sum, s) => sum + (s.captain && s.captain.points != null ? s.captain.points * 0.5 : 0), 0);
+  return { rounds: scores.length, best, worst, captainBonus };
+}
+
+function buildDuel(state, a, b) {
+  const sa = participantScores(state, a.id);
+  const sb = participantScores(state, b.id);
+  const mapA = new Map(sa.map((s) => [Number(s.roundId), Number(s.points) || 0]));
+  const mapB = new Map(sb.map((s) => [Number(s.roundId), Number(s.points) || 0]));
+  const rounds = [...new Set([...mapA.keys(), ...mapB.keys()])].sort((x, y) => x - y);
+  let winsA = 0;
+  let winsB = 0;
+  let ties = 0;
+  let decided = 0;
+  let biggestA = null;
+  let biggestB = null;
+  const rows = rounds.map((r) => {
+    const va = mapA.has(r) ? mapA.get(r) : null;
+    const vb = mapB.has(r) ? mapB.get(r) : null;
+    let outcome = "na";
+    if (va != null && vb != null) {
+      decided += 1;
+      const margin = va - vb;
+      if (margin > 0) {
+        winsA += 1;
+        outcome = "a";
+        if (!biggestA || margin > biggestA.margin) biggestA = { r, margin };
+      } else if (margin < 0) {
+        winsB += 1;
+        outcome = "b";
+        if (!biggestB || -margin > biggestB.margin) biggestB = { r, margin: -margin };
+      } else {
+        ties += 1;
+        outcome = "tie";
+      }
+    }
+    return { r, va, vb, outcome };
+  });
+  // Sequência atual: olha das rodadas decididas mais recentes para trás.
+  let streakSide = null;
+  let streak = 0;
+  for (let i = rows.length - 1; i >= 0; i--) {
+    const outcome = rows[i].outcome;
+    if (outcome === "na") continue;
+    if (streakSide === null) {
+      streakSide = outcome;
+      streak = 1;
+    } else if (outcome === streakSide && outcome !== "tie") {
+      streak += 1;
+    } else {
+      break;
+    }
+  }
+  return { rows, winsA, winsB, ties, decided, biggestA, biggestB, streakSide, streak, sumA: summarizeScores(sa), sumB: summarizeScores(sb) };
+}
+
+function duelStat(label, av, bv, fmt = fmtPts, higherWins = true) {
+  const aNum = av == null ? null : Number(av);
+  const bNum = bv == null ? null : Number(bv);
+  let winner = "tie";
+  if (aNum != null && bNum != null && aNum !== bNum) {
+    const aBetter = higherWins ? aNum > bNum : aNum < bNum;
+    winner = aBetter ? "a" : "b";
+  }
+  return `
+    <div class="duel-stat">
+      <b class="${winner === "a" ? "win" : ""}">${av == null ? "-" : fmt(av)}</b>
+      <span>${esc(label)}</span>
+      <b class="${winner === "b" ? "win" : ""}">${bv == null ? "-" : fmt(bv)}</b>
+    </div>`;
+}
+
+function duelVerdict(a, b, duel) {
+  if (!duel.decided) return "Sem rodadas em comum para apontar um favorito ainda.";
+  if (duel.winsA === duel.winsB) {
+    const streakNote =
+      duel.streakSide === "a" || duel.streakSide === "b"
+        ? ` ${esc(teamName(duel.streakSide === "a" ? a : b))} vem de ${duel.streak} rodada${duel.streak > 1 ? "s" : ""} levando a melhor.`
+        : "";
+    return `Confronto equilibrado: ${duel.winsA} a ${duel.winsB} no retrospecto.${streakNote}`;
+  }
+  const leader = duel.winsA > duel.winsB ? a : b;
+  const big = duel.winsA > duel.winsB ? duel.winsB : duel.winsA;
+  const top = Math.max(duel.winsA, duel.winsB);
+  const streakNote =
+    (duel.streakSide === "a" && leader === a) || (duel.streakSide === "b" && leader === b)
+      ? ` Está embalado: ${duel.streak} rodada${duel.streak > 1 ? "s" : ""} seguidas na frente.`
+      : "";
+  return `<b>${esc(teamName(leader))}</b> leva a melhor no confronto direto (${top} a ${big}).${streakNote}`;
+}
+
+function duelRoundsMarkup(duel, a, b) {
+  if (!duel.rows.length) {
+    return '<div class="empty compact"><p>Sem rodadas em comum para comparar ainda.</p></div>';
+  }
+  const max = Math.max(
+    1,
+    ...duel.rows.flatMap((row) => [row.va == null ? 0 : Math.abs(row.va), row.vb == null ? 0 : Math.abs(row.vb)])
+  );
+  // Cabeçalho fixo (sticky) lembrando qual cor é de quem: dourado à esquerda,
+  // verde à direita. Acompanha a rolagem pra ninguém perder a referência.
+  const legend = `
+    <div class="duel-rounds-legend">
+      <span class="leg a">${esc(teamName(a))}</span>
+      <span class="leg-mid">Rodada</span>
+      <span class="leg b">${esc(teamName(b))}</span>
+    </div>`;
+  return `<div class="duel-rounds">${legend}${duel.rows
+    .map((row) => {
+      const wa = row.va == null ? 0 : (Math.max(0, row.va) / max) * 100;
+      const wb = row.vb == null ? 0 : (Math.max(0, row.vb) / max) * 100;
+      return `
+      <div class="duel-round">
+        <div class="duel-cell left${row.outcome === "a" ? " win" : ""}">
+          <b>${row.va == null ? "-" : fmtPts(row.va)}</b>
+          <i style="width:${wa}%"></i>
+        </div>
+        <span class="duel-r">R${esc(row.r)}</span>
+        <div class="duel-cell right${row.outcome === "b" ? " win" : ""}">
+          <i style="width:${wb}%"></i>
+          <b>${row.vb == null ? "-" : fmtPts(row.vb)}</b>
+        </div>
+      </div>`;
+    })
+    .join("")}</div>`;
+}
+
+function duelTotal(participant) {
+  return Number(participant.totalPoints ?? participant.pontos) || 0;
+}
+
+function duelAverage(participant, summary) {
+  if (participant.average != null) return Number(participant.average);
+  return summary.rounds ? duelTotal(participant) / summary.rounds : null;
+}
+
+function duelBest(participant, summary) {
+  return participant.bestRound != null ? Number(participant.bestRound) : summary.best;
+}
+
+function renderDuelResult(state) {
+  const box = $("duelResult");
+  if (!box) return;
+  const participants = Array.isArray(state.participants) ? state.participants : [];
+  const a = participants.find((p) => p.id === duelAId);
+  const b = participants.find((p) => p.id === duelBId);
+  if (!a || !b) {
+    box.innerHTML = '<div class="empty compact"><p>Escolha dois cartoleiros para ver o duelo.</p></div>';
+    return;
+  }
+  if (a.id === b.id) {
+    box.innerHTML = '<div class="empty compact"><p>Escolha dois cartoleiros diferentes para comparar.</p></div>';
+    return;
+  }
+
+  const duel = buildDuel(state, a, b);
+  const totalA = duelTotal(a);
+  const totalB = duelTotal(b);
+  const avgA = duelAverage(a, duel.sumA);
+  const avgB = duelAverage(b, duel.sumB);
+  const winRateA = duel.decided ? (duel.winsA / duel.decided) * 100 : null;
+  const winRateB = duel.decided ? (duel.winsB / duel.decided) * 100 : null;
+  const fmtPct = (v) => `${Math.round(Number(v) || 0)}%`;
+  const fmtInt = (v) => String(Math.round(Number(v) || 0));
+
+  box.innerHTML = `
+    <div class="h2h-board duel-board glass">
+      <a class="h2h-side side-a${duel.winsA >= duel.winsB ? " lead" : ""}" href="${profileHref(a)}">
+        ${avatarMarkup(a, "duel-avatar")}
+        <strong>${esc(teamName(a))}</strong>
+        <span>#${a.rank || "-"} · ${fmtPts(totalA)} pts</span>
+      </a>
+      <div class="h2h-score">
+        <b>${duel.winsA}</b><i>x</i><b>${duel.winsB}</b>
+        <em>${duel.ties} empate${duel.ties === 1 ? "" : "s"}</em>
+      </div>
+      <a class="h2h-side side-b${duel.winsB > duel.winsA ? " lead" : ""}" href="${profileHref(b)}">
+        ${avatarMarkup(b, "duel-avatar")}
+        <strong>${esc(teamName(b))}</strong>
+        <span>#${b.rank || "-"} · ${fmtPts(totalB)} pts</span>
+      </a>
+    </div>
+    <p class="duel-verdict">${duelVerdict(a, b, duel)}</p>
+    <div class="duel-summary glass">
+      ${duelStat("Pontos totais", totalA, totalB)}
+      ${duelStat("Média", avgA, avgB)}
+      ${duelStat("Melhor rodada", duelBest(a, duel.sumA), duelBest(b, duel.sumB))}
+      ${duelStat("Pior rodada", duel.sumA.worst, duel.sumB.worst)}
+      ${duelStat("Vitórias no duelo", duel.winsA, duel.winsB, fmtInt)}
+      ${duelStat("Aproveitamento", winRateA, winRateB, fmtPct)}
+      ${duelStat("Maior goleada", duel.biggestA ? duel.biggestA.margin : null, duel.biggestB ? duel.biggestB.margin : null)}
+      ${duelStat("Bônus de capitão", duel.sumA.captainBonus, duel.sumB.captainBonus)}
+      ${duelStat("Rodadas jogadas", duel.sumA.rounds, duel.sumB.rounds, fmtInt, true)}
+    </div>
+    <div class="section-head tight"><span class="sec-kicker">Rodada a rodada</span><h2 class="sec-title">Quem pontuou mais</h2></div>
+    ${duelRoundsMarkup(duel, a, b)}`;
+}
+
+function fillDuelSelect(select, participants, selectedId, otherId) {
+  if (!select) return;
+  select.innerHTML = participants
+    .map((p) => `<option value="${esc(p.id)}"${p.id === selectedId ? " selected" : ""}${p.id === otherId ? " disabled" : ""}>#${p.rank || "-"} ${esc(teamName(p))}</option>`)
+    .join("");
+  select.value = selectedId == null ? "" : selectedId;
+}
+
+function renderDuelo(state) {
+  const selectA = $("duelSelectA");
+  const selectB = $("duelSelectB");
+  if (!selectA || !selectB) return;
+  const participants = [...(Array.isArray(state.participants) ? state.participants : [])].sort(
+    (a, b) => (Number(b.pontos) || 0) - (Number(a.pontos) || 0)
+  );
+  if (participants.length < 2) {
+    duelAId = null;
+    duelBId = null;
+    selectA.innerHTML = "";
+    selectB.innerHTML = "";
+    $("duelResult").innerHTML = '<div class="empty compact"><p>O duelo aparece quando houver pelo menos dois cartoleiros na liga.</p></div>';
+    return;
+  }
+  const ids = new Set(participants.map((p) => p.id));
+  // Mantém a escolha do usuário entre atualizações; na primeira vez, abre com líder x vice.
+  if (duelAId == null || !ids.has(duelAId)) duelAId = participants[0].id;
+  if (duelBId == null || !ids.has(duelBId) || duelBId === duelAId) {
+    duelBId = (participants.find((p) => p.id !== duelAId) || participants[0]).id;
+  }
+  fillDuelSelect(selectA, participants, duelAId, duelBId);
+  fillDuelSelect(selectB, participants, duelBId, duelAId);
+  renderDuelResult(state);
+}
+
+function onDuelChange() {
+  if (!currentState) return;
+  duelAId = $("duelSelectA").value || null;
+  duelBId = $("duelSelectB").value || null;
+  renderDuelo(currentState);
+}
+
+function onDuelSwap() {
+  if (!currentState) return;
+  const tmp = duelAId;
+  duelAId = duelBId;
+  duelBId = tmp;
+  renderDuelo(currentState);
+}
+
+// ---------- Apostas em jogo ----------
+const ADMIN_TOKEN_KEY = "cartola_admin_token";
+
+function organizerToken() {
+  try {
+    return typeof localStorage !== "undefined" ? localStorage.getItem(ADMIN_TOKEN_KEY) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function isOrganizer() {
+  return !!organizerToken();
+}
+
+function betScopeRounds(state, bet) {
+  const all = roundsWithData(state).sort((a, b) => a - b);
+  if (bet.scope === "rounds") {
+    const from = Number(bet.fromRound);
+    const to = Number(bet.toRound);
+    return all.filter((r) => (Number.isFinite(from) ? r >= from : true) && (Number.isFinite(to) ? r <= to : true));
+  }
+  return all;
+}
+
+function betScopeLabel(bet) {
+  if (bet.scope === "rounds") {
+    if (bet.fromRound && bet.toRound && bet.fromRound !== bet.toRound) return `Rodadas ${bet.fromRound} a ${bet.toRound}`;
+    return `Rodada ${bet.fromRound || bet.toRound || "?"}`;
+  }
+  return "Campeonato inteiro";
+}
+
+function betStanding(state, bet, a, b) {
+  const rounds = betScopeRounds(state, bet);
+  const sa = new Map(participantScores(state, a.id).map((s) => [Number(s.roundId), Number(s.points) || 0]));
+  const sb = new Map(participantScores(state, b.id).map((s) => [Number(s.roundId), Number(s.points) || 0]));
+  let ptsA = 0;
+  let ptsB = 0;
+  let winsA = 0;
+  let winsB = 0;
+  let played = 0;
+  for (const r of rounds) {
+    const va = sa.has(r) ? sa.get(r) : null;
+    const vb = sb.has(r) ? sb.get(r) : null;
+    if (va != null) ptsA += va;
+    if (vb != null) ptsB += vb;
+    if (va != null && vb != null) {
+      played += 1;
+      if (va > vb) winsA += 1;
+      else if (vb > va) winsB += 1;
+    }
+  }
+  const maxData = roundsWithData(state).reduce((m, r) => Math.max(m, r), 0);
+  const finished = bet.scope === "rounds" && bet.toRound != null && maxData >= Number(bet.toRound);
+  return { rounds, ptsA, ptsB, winsA, winsB, played, finished };
+}
+
+function betCard(state, bet) {
+  const participants = Array.isArray(state.participants) ? state.participants : [];
+  const a = participants.find((p) => p.id === bet.aId);
+  const b = participants.find((p) => p.id === bet.bId);
+  if (!a || !b) return "";
+  const st = betStanding(state, bet, a, b);
+  const lead = st.ptsA === st.ptsB ? "tie" : st.ptsA > st.ptsB ? "a" : "b";
+  const leader = lead === "a" ? a : b;
+  // Quem venceu de fato: só quando a aposta encerrou e não terminou empatada.
+  const winnerSide = st.finished && lead !== "tie" ? lead : null;
+  let status;
+  if (!st.played) status = "Aguardando as rodadas que valem.";
+  else if (st.finished && lead === "tie") status = `Encerrada em empate — dividem ${esc(bet.stake)}.`;
+  else if (st.finished) status = `Encerrada: <b>${esc(teamName(leader))}</b> leva ${esc(bet.stake)}.`;
+  else if (lead === "tie") status = "Empate técnico — segue valendo.";
+  else status = `<b>${esc(teamName(leader))}</b> na frente por ${fmtPts(Math.abs(st.ptsA - st.ptsB))} pts.`;
+
+  const removeBtn = isOrganizer()
+    ? `<button class="bet-remove" type="button" data-bet-id="${esc(bet.id)}" aria-label="Remover aposta" title="Remover">&times;</button>`
+    : "";
+
+  const side = (p, who) => {
+    const isWinner = who === winnerSide;
+    return `
+    <a class="bet-side side-${who}${lead === who ? " lead" : ""}${isWinner ? " winner" : ""}" href="${profileHref(p)}">
+      ${isWinner ? '<span class="bet-crown" aria-hidden="true">👑</span>' : ""}
+      ${avatarMarkup(p, "bet-avatar")}
+      <strong>${esc(teamName(p))}</strong>
+      ${isWinner ? '<span class="bet-winner-tag">Ganhador</span>' : ""}
+    </a>`;
+  };
+
+  // Duas comparações que realmente decidem a disputa: pontos somados nas rodadas
+  // que valem e quantas rodadas cada um venceu. Cada barra é dividida entre os
+  // lados (dourado = A, verde = B) e o líder de cada métrica fica em destaque.
+  const totalPts = st.ptsA + st.ptsB;
+  const totalWins = st.winsA + st.winsB;
+  const metric = (label, valA, valB, fmt) => {
+    const sum = Number(valA) + Number(valB);
+    const shareA = sum > 0 ? (Number(valA) / sum) * 100 : 50;
+    return `
+      <div class="bet-metric">
+        <div class="bet-metric-head">
+          <b class="${valA > valB ? "win" : ""}">${fmt(valA)}</b>
+          <span>${label}</span>
+          <b class="${valB > valA ? "win" : ""}">${fmt(valB)}</b>
+        </div>
+        <div class="bet-metric-track" role="img" aria-label="${esc(teamName(a))} ${fmt(valA)}, ${esc(teamName(b))} ${fmt(valB)} em ${label}">
+          <i class="a" style="width:${shareA}%"></i>
+          <i class="b" style="width:${100 - shareA}%"></i>
+        </div>
+      </div>`;
+  };
+
+  return `
+    <div class="bet-card glass${st.finished ? " is-done" : ""}${winnerSide ? " has-winner" : ""}">
+      ${removeBtn}
+      <div class="bet-stake"><span>Valendo</span><strong>${esc(bet.stake)}</strong></div>
+      <div class="bet-board">
+        ${side(a, "a")}
+        <span class="bet-vs">VS</span>
+        ${side(b, "b")}
+      </div>
+      <div class="bet-metrics">
+        ${metric("Pontos acumulados", st.ptsA, st.ptsB, fmtPts)}
+        ${metric("Rodadas vencidas", st.winsA, st.winsB, (v) => String(v))}
+      </div>
+      <div class="bet-foot">
+        <span class="bet-scope">${esc(betScopeLabel(bet))}</span>
+        <span class="bet-status">${status}</span>
+      </div>
+      ${bet.note ? `<p class="bet-note">${esc(bet.note)}</p>` : ""}
+    </div>`;
+}
+
+function renderBetForm(state) {
+  const form = $("betCreate");
+  if (!form) return;
+  if (!isOrganizer()) {
+    form.hidden = true;
+    return;
+  }
+  form.hidden = false;
+  const participants = [...(Array.isArray(state.participants) ? state.participants : [])].sort(
+    (a, b) => (Number(b.pontos) || 0) - (Number(a.pontos) || 0)
+  );
+  const options = participants.map((p) => `<option value="${esc(p.id)}">#${p.rank || "-"} ${esc(teamName(p))}</option>`).join("");
+  const selectA = $("betSelectA");
+  const selectB = $("betSelectB");
+  if (selectA && !selectA.innerHTML) selectA.innerHTML = options;
+  if (selectB && !selectB.innerHTML) {
+    selectB.innerHTML = options;
+    if (participants[1]) selectB.value = participants[1].id;
+  }
+  const curId = currentRoundId(state);
+  const fromEl = $("betFrom");
+  const toEl = $("betTo");
+  if (curId && fromEl && !fromEl.value) fromEl.value = curId;
+  if (curId && toEl && !toEl.value) toEl.value = curId;
+}
+
+function renderBets(state) {
+  const box = $("betList");
+  if (!box) return;
+  renderBetForm(state);
+  const bets = Array.isArray(state.bets) ? state.bets : [];
+  if (!bets.length) {
+    box.innerHTML = isOrganizer()
+      ? '<div class="empty compact"><p>Nenhuma aposta no ar. Crie a primeira acima e todo mundo acompanha aqui.</p></div>'
+      : '<div class="empty compact"><p>Sem apostas em jogo no momento. Quando o organizador lançar um desafio, ele aparece aqui.</p></div>';
+    return;
+  }
+  box.innerHTML = bets.map((bet) => betCard(state, bet)).join("");
+}
+
+async function saveBets(bets) {
+  const token = organizerToken();
+  const response = await fetch("/api/bets", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+    body: JSON.stringify({ bets }),
+  });
+  if (!response.ok) throw new Error("Falha ao salvar apostas");
+  return response.json();
+}
+
+async function onCreateBet(event) {
+  if (event && event.preventDefault) event.preventDefault();
+  if (!currentState) return;
+  const note = $("betNote");
+  const aId = $("betSelectA").value;
+  const bId = $("betSelectB").value;
+  const stake = ($("betStake").value || "").trim();
+  const scope = $("betScope").value === "rounds" ? "rounds" : "season";
+  if (!aId || !bId || aId === bId) {
+    if (note) note.textContent = "Escolha dois cartoleiros diferentes.";
+    return;
+  }
+  if (!stake) {
+    if (note) note.textContent = "Diga o que está valendo.";
+    return;
+  }
+  const bet = { id: `b${Date.now()}${Math.random().toString(36).slice(2, 6)}`, aId, bId, stake, scope, createdAt: new Date().toISOString() };
+  if (scope === "rounds") {
+    bet.fromRound = Number($("betFrom").value) || null;
+    bet.toRound = Number($("betTo").value) || bet.fromRound;
+    if (!bet.fromRound) {
+      if (note) note.textContent = "Informe a rodada inicial da aposta.";
+      return;
+    }
+  }
+  const next = [...(Array.isArray(currentState.bets) ? currentState.bets : []), bet];
+  if (note) note.textContent = "Lançando aposta...";
+  try {
+    await saveBets(next);
+    currentState.bets = next;
+    $("betStake").value = "";
+    if (note) note.textContent = "Aposta no ar!";
+    renderBets(currentState);
+    load();
+  } catch (e) {
+    if (note) note.textContent = "Não consegui salvar (sua sessão de organizador pode ter expirado).";
+  }
+}
+
+async function onRemoveBet(betId) {
+  if (!currentState) return;
+  const next = (Array.isArray(currentState.bets) ? currentState.bets : []).filter((b) => b.id !== betId);
+  try {
+    await saveBets(next);
+    currentState.bets = next;
+    renderBets(currentState);
+    load();
+  } catch (e) {
+    const note = $("betNote");
+    if (note) note.textContent = "Não consegui remover a aposta agora.";
+  }
+}
+
+function onBetScopeChange() {
+  const scope = $("betScope");
+  const rounds = $("betRounds");
+  if (rounds && scope) rounds.hidden = scope.value !== "rounds";
+}
+
 function renderMaintenance(state) {
   const banner = $("maintenanceBanner");
   if (!banner) return;
@@ -1033,6 +1538,8 @@ function render(state) {
   renderHighlights(state.highlights);
   renderMitadas(state.mitadas);
   renderRecords(state);
+  renderBets(state);
+  renderDuelo(state);
   renderBadges(participants);
 
   firstRender = false;
@@ -1040,7 +1547,10 @@ function render(state) {
 
 async function load() {
   try {
-    const response = await fetch("/api/data", { cache: "no-store" });
+    // O organizador escreve pela própria home (apostas) e precisa ver na hora o
+    // que salvou, então fura o cache de CDN com ?t=. O público segue cacheado.
+    const url = isOrganizer() ? `/api/data?t=${Date.now()}` : "/api/data";
+    const response = await fetch(url, { cache: "no-store" });
     if (!response.ok) throw new Error("erro");
     render(await response.json());
   } catch (e) {
@@ -1052,8 +1562,24 @@ bindTabs();
 if ($("roundSelect")) $("roundSelect").addEventListener("change", onRoundSelectChange);
 $("shareRoundBtn").addEventListener("click", shareRound);
 $("roundCardBtn").addEventListener("click", downloadRoundCard);
+if ($("duelSelectA")) $("duelSelectA").addEventListener("change", onDuelChange);
+if ($("duelSelectB")) $("duelSelectB").addEventListener("change", onDuelChange);
+if ($("duelSwap")) $("duelSwap").addEventListener("click", onDuelSwap);
+if ($("betCreate")) $("betCreate").addEventListener("submit", onCreateBet);
+if ($("betScope")) $("betScope").addEventListener("change", onBetScopeChange);
+document.addEventListener("click", (event) => {
+  const target = event.target instanceof Element ? event.target : null;
+  const remove = target ? target.closest(".bet-remove[data-bet-id]") : null;
+  if (remove) {
+    event.preventDefault();
+    onRemoveBet(remove.dataset.betId);
+  }
+});
 load();
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden) load();
 });
-setInterval(load, 60000);
+// Polling de fundo a cada 2 min é suficiente: ao voltar pra aba o foco já
+// recarrega na hora, e isso reduz idas à função/banco. (Cache de CDN + cache
+// em memória no servidor cobrem o resto.)
+setInterval(load, 120000);

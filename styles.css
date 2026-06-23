@@ -1334,7 +1334,7 @@ textarea:focus { border-color: rgba(47, 224, 140, 0.55); box-shadow: 0 0 0 3px r
   top: 0;
   z-index: 8;
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   gap: 8px;
   margin: 18px 0 2px;
   padding: 8px;
@@ -1565,6 +1565,567 @@ textarea:focus { border-color: rgba(47, 224, 140, 0.55); box-shadow: 0 0 0 3px r
   font-style: normal;
   font-size: 12px;
   text-align: center;
+}
+
+/* ---------- Duelo (aba comparativa) ---------- */
+.duel-pickbar {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: end;
+  gap: 10px;
+  padding: 14px;
+  margin-bottom: 14px;
+}
+.duel-pick { min-width: 0; margin: 0; }
+.duel-pick select {
+  width: 100%;
+  font-size: 14px;
+  padding: 12px 30px 12px 12px;
+  cursor: pointer;
+}
+.duel-swap {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 44px;
+  border-radius: 12px;
+  border: 1px solid var(--brd);
+  background: var(--glass-strong);
+  color: var(--gold);
+  font-size: 18px;
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.2s ease;
+}
+.duel-swap:hover { background: rgba(244, 205, 107, 0.14); }
+.duel-swap:active { transform: scale(0.92) rotate(180deg); }
+
+.duel-board { grid-template-columns: 1fr auto 1fr; }
+.duel-board .h2h-side {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+}
+.duel-avatar {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--display);
+  font-size: 17px;
+  color: #04140c;
+  overflow: hidden;
+  border: 2px solid var(--brd);
+}
+.duel-avatar.image-avatar { background: #0b1f16; }
+.duel-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.side-a.lead .duel-avatar { border-color: var(--gold); }
+.side-b.lead .duel-avatar { border-color: var(--emerald); }
+.side-b.lead strong { color: var(--emerald); }
+
+.duel-verdict {
+  margin: 0 0 14px;
+  text-align: center;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--ink-dim);
+}
+.duel-verdict b { color: var(--ink); }
+
+.duel-summary {
+  display: grid;
+  gap: 2px;
+  padding: 6px 14px;
+  margin-bottom: 18px;
+}
+.duel-stat {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 2px;
+  border-bottom: 1px solid var(--brd-soft);
+}
+.duel-stat:last-child { border-bottom: 0; }
+.duel-stat span {
+  text-align: center;
+  font-size: 11px;
+  letter-spacing: 0.3px;
+  color: var(--ink-dim);
+  text-transform: uppercase;
+}
+.duel-stat b {
+  font-family: var(--display);
+  font-size: 19px;
+  color: var(--ink-dim);
+}
+.duel-stat b:nth-of-type(1) { text-align: right; }
+.duel-stat b:nth-of-type(2) { text-align: left; }
+.duel-stat b.win { color: var(--gold); }
+
+.duel-rounds { display: grid; gap: 7px; }
+/* Lembrete fixo de quem é cada cor; acompanha a rolagem da lista de rodadas. */
+.duel-rounds-legend {
+  position: sticky;
+  top: 8px;
+  z-index: 3;
+  display: grid;
+  grid-template-columns: 1fr 46px 1fr;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--brd-soft);
+  background: rgba(10, 20, 15, 0.94);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+.duel-rounds-legend .leg {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.duel-rounds-legend .leg::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+.duel-rounds-legend .leg.a { justify-content: flex-end; }
+.duel-rounds-legend .leg.a::before { background: var(--gold); order: 2; }
+.duel-rounds-legend .leg.b::before { background: var(--emerald); }
+.duel-rounds-legend .leg-mid {
+  text-align: center;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+.duel-round {
+  display: grid;
+  grid-template-columns: 1fr 46px 1fr;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--brd-soft);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 8px 12px;
+}
+.duel-r {
+  text-align: center;
+  color: var(--ink-dim);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+.duel-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.duel-cell.left { flex-direction: row-reverse; }
+.duel-cell b {
+  flex: 0 0 auto;
+  font-family: var(--display);
+  font-size: 16px;
+  color: var(--ink-dim);
+}
+.duel-cell.win b { color: var(--ink); }
+.duel-cell i {
+  height: 7px;
+  border-radius: 4px;
+  min-width: 2px;
+  background: rgba(255, 255, 255, 0.16);
+}
+.duel-cell.left i { background: linear-gradient(90deg, transparent, var(--gold)); }
+.duel-cell.right i { background: linear-gradient(90deg, var(--emerald), transparent); }
+.duel-cell.left.win i { box-shadow: 0 0 10px rgba(244, 205, 107, 0.35); }
+.duel-cell.right.win i { box-shadow: 0 0 10px rgba(47, 224, 140, 0.35); }
+
+@media (max-width: 420px) {
+  .duel-stat b { font-size: 17px; }
+  .duel-cell b { font-size: 14px; }
+}
+
+/* ---------- Apostas em jogo ---------- */
+.bet-create {
+  padding: 16px 14px;
+  margin-bottom: 16px;
+  display: grid;
+  gap: 12px;
+  border: 1px solid rgba(244, 205, 107, 0.3);
+}
+.bet-create-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.bet-create-head strong { font-size: 15px; color: var(--ink); }
+.bet-org-tag {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--gold-ink);
+  background: linear-gradient(150deg, #ffe09a, var(--gold) 60%, var(--gold-deep));
+  padding: 3px 8px;
+  border-radius: 999px;
+}
+.bet-create-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  align-items: end;
+}
+.bet-create input,
+.bet-create select {
+  width: 100%;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--brd);
+  background: var(--glass-strong);
+  color: var(--ink);
+  font-size: 14px;
+  font-family: inherit;
+}
+.bet-rounds { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.bet-create-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+.bet-list { display: grid; gap: 12px; margin-bottom: 20px; }
+.bet-card {
+  position: relative;
+  padding: 16px 14px 14px;
+  overflow: hidden;
+}
+.bet-card.is-done { opacity: 0.82; }
+.bet-card.is-done::after {
+  content: "encerrada";
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+.bet-remove {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  border: 1px solid var(--brd);
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--ink-dim);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 2;
+}
+.bet-remove:hover { color: #ff8a8a; border-color: rgba(255, 138, 138, 0.5); }
+.bet-stake {
+  text-align: center;
+  margin-bottom: 12px;
+}
+.bet-stake span {
+  display: block;
+  font-size: 10.5px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+.bet-stake strong {
+  display: block;
+  margin-top: 2px;
+  font-family: var(--display);
+  font-size: 21px;
+  color: var(--gold);
+  line-height: 1.1;
+}
+.bet-board {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 8px;
+}
+.bet-side {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-decoration: none;
+  min-width: 0;
+}
+.bet-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--display);
+  font-size: 16px;
+  color: #04140c;
+  overflow: hidden;
+  border: 2px solid var(--brd);
+}
+.bet-avatar.image-avatar { background: #0b1f16; }
+.bet-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.bet-side strong {
+  font-size: 13px;
+  color: var(--ink);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Identidade de cor fixa: lado A = dourado, lado B = verde — igual às barras. */
+.bet-side { position: relative; }
+.bet-side.side-a .bet-avatar { border-color: var(--gold); }
+.bet-side.side-b .bet-avatar { border-color: var(--emerald); }
+.bet-side.lead .bet-avatar { box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.1), 0 4px 14px rgba(0, 0, 0, 0.35); }
+
+/* ===== Tratamento de CAMPEÃO da aposta encerrada =====
+   Raios girando + halo pulsante + coroa flutuante com faíscas + selo com brilho
+   passando, e o lado perdedor esmaecido pra o vencedor saltar aos olhos. */
+.bet-side.winner {
+  z-index: 1;
+  animation: betWinnerPop 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+/* Raios de luz girando atrás do avatar */
+.bet-side.winner::before {
+  content: "";
+  position: absolute;
+  top: -30px;
+  left: 50%;
+  width: 104px;
+  height: 104px;
+  margin-left: -52px;
+  border-radius: 50%;
+  z-index: -1;
+  pointer-events: none;
+  background: conic-gradient(from 0deg,
+    rgba(244, 205, 107, 0) 0deg, rgba(244, 205, 107, 0.65) 12deg, rgba(244, 205, 107, 0) 30deg,
+    rgba(244, 205, 107, 0) 60deg, rgba(244, 205, 107, 0.55) 72deg, rgba(244, 205, 107, 0) 90deg,
+    rgba(244, 205, 107, 0) 120deg, rgba(244, 205, 107, 0.65) 132deg, rgba(244, 205, 107, 0) 150deg,
+    rgba(244, 205, 107, 0) 180deg, rgba(244, 205, 107, 0.55) 192deg, rgba(244, 205, 107, 0) 210deg,
+    rgba(244, 205, 107, 0) 240deg, rgba(244, 205, 107, 0.65) 252deg, rgba(244, 205, 107, 0) 270deg,
+    rgba(244, 205, 107, 0) 300deg, rgba(244, 205, 107, 0.55) 312deg, rgba(244, 205, 107, 0) 330deg);
+  -webkit-mask: radial-gradient(circle, transparent 26px, #000 30px, #000 44px, transparent 52px);
+  mask: radial-gradient(circle, transparent 26px, #000 30px, #000 44px, transparent 52px);
+  animation: betRays 10s linear infinite;
+}
+.bet-side.winner .bet-avatar {
+  border-color: var(--gold);
+  position: relative;
+  z-index: 1;
+  transform: scale(1.08);
+  animation: betWinnerGlow 2s ease-in-out infinite;
+}
+.bet-side.winner strong {
+  color: var(--gold);
+  text-shadow: 0 0 12px rgba(244, 205, 107, 0.45);
+}
+/* lado perdedor recua pra o campeão dominar a cena */
+.bet-card.has-winner .bet-side:not(.winner) {
+  opacity: 0.45;
+  filter: grayscale(0.4);
+}
+
+/* Coroa: cai do alto com bounce, flutua e ganha faíscas piscando. */
+.bet-crown {
+  position: absolute;
+  top: -24px;
+  left: 50%;
+  font-size: 23px;
+  z-index: 3;
+  filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.55)) drop-shadow(0 0 9px rgba(244, 205, 107, 0.85));
+  animation: betCrownIn 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both,
+             betCrownFloat 3s ease-in-out 0.7s infinite;
+}
+.bet-crown::before,
+.bet-crown::after {
+  content: "✦";
+  position: absolute;
+  top: 3px;
+  font-size: 10px;
+  color: #fff3cf;
+  text-shadow: 0 0 6px rgba(244, 205, 107, 0.95);
+  animation: betSparkle 1.8s ease-in-out infinite;
+}
+.bet-crown::before { left: -11px; animation-delay: 0.2s; }
+.bet-crown::after { right: -11px; animation-delay: 1s; }
+
+.bet-winner-tag {
+  position: relative;
+  overflow: hidden;
+  margin-top: 6px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--gold-ink);
+  background: linear-gradient(150deg, #ffe09a, var(--gold) 60%, var(--gold-deep));
+  padding: 3px 13px;
+  border-radius: 999px;
+  box-shadow: 0 4px 14px rgba(244, 205, 107, 0.45);
+  animation: betTagPop 0.5s ease 0.35s both;
+}
+.bet-winner-tag::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, 0.85) 50%, transparent 70%);
+  transform: translateX(-120%);
+  animation: betShine 2.6s ease-in-out 1s infinite;
+}
+
+@keyframes betWinnerGlow {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(244, 205, 107, 0.35), 0 0 16px rgba(244, 205, 107, 0.5); }
+  50% { box-shadow: 0 0 0 4px rgba(244, 205, 107, 0.55), 0 0 34px rgba(244, 205, 107, 0.85); }
+}
+@keyframes betRays { to { transform: rotate(360deg); } }
+@keyframes betWinnerPop {
+  0% { transform: scale(0.92); }
+  60% { transform: scale(1.04); }
+  100% { transform: scale(1); }
+}
+@keyframes betCrownIn {
+  0% { opacity: 0; transform: translate(-50%, -16px) scale(0.4) rotate(-20deg); }
+  100% { opacity: 1; transform: translate(-50%, 0) scale(1) rotate(0deg); }
+}
+@keyframes betCrownFloat {
+  0%, 100% { transform: translate(-50%, 0) rotate(-5deg); }
+  50% { transform: translate(-50%, -4px) rotate(5deg); }
+}
+@keyframes betSparkle {
+  0%, 100% { opacity: 0; transform: scale(0.4); }
+  50% { opacity: 1; transform: scale(1); }
+}
+@keyframes betTagPop {
+  0% { opacity: 0; transform: translateY(6px) scale(0.8); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes betShine {
+  0% { transform: translateX(-120%); }
+  55%, 100% { transform: translateX(120%); }
+}
+
+/* Card do campeão: sai do estado esmaecido "encerrada" e ganha borda e luz douradas. */
+.bet-card.has-winner {
+  opacity: 1;
+  border-color: rgba(244, 205, 107, 0.55);
+  background-image: radial-gradient(130% 90% at 50% -10%, rgba(244, 205, 107, 0.2), transparent 60%);
+  box-shadow: 0 0 0 1px rgba(244, 205, 107, 0.25), 0 16px 44px rgba(244, 205, 107, 0.16);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bet-side.winner,
+  .bet-side.winner::before,
+  .bet-side.winner .bet-avatar,
+  .bet-crown,
+  .bet-crown::before,
+  .bet-crown::after,
+  .bet-winner-tag,
+  .bet-winner-tag::after {
+    animation: none !important;
+  }
+  .bet-side.winner .bet-avatar { transform: scale(1.06); }
+}
+.bet-vs {
+  font-family: var(--display);
+  font-size: 14px;
+  color: var(--ink-dim);
+  letter-spacing: 1px;
+}
+
+/* Comparações que decidem a disputa: pontos somados e rodadas vencidas.
+   Cada métrica mostra os números dos dois lados e uma barra dividida
+   (dourado = A, verde = B) — quem tem o pedaço maior lidera aquela métrica. */
+.bet-metrics {
+  display: grid;
+  gap: 12px;
+  margin: 14px 0 12px;
+}
+.bet-metric-head {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 5px;
+}
+.bet-metric-head b {
+  font-family: var(--display);
+  font-size: 18px;
+  color: var(--ink-dim);
+}
+.bet-metric-head b:first-child { text-align: right; }
+.bet-metric-head b:last-child { text-align: left; }
+.bet-metric-head b.win { color: var(--ink); }
+.bet-metric-head span {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  white-space: nowrap;
+}
+.bet-metric-track {
+  display: flex;
+  height: 9px;
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid var(--brd-soft);
+  background: rgba(255, 255, 255, 0.06);
+}
+.bet-metric-track i {
+  display: block;
+  min-width: 2px;
+  transition: width 0.5s ease;
+}
+.bet-metric-track i.a { background: linear-gradient(90deg, var(--gold-deep), var(--gold)); }
+.bet-metric-track i.b { background: linear-gradient(90deg, var(--emerald), var(--emerald-2)); }
+.bet-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.bet-scope {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink-dim);
+  background: var(--glass-strong);
+  border: 1px solid var(--brd-soft);
+  border-radius: 999px;
+  padding: 3px 10px;
+}
+.bet-status { font-size: 12.5px; color: var(--ink-dim); flex: 1; text-align: right; }
+.bet-status b { color: var(--ink); }
+.bet-note {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: var(--ink-dim);
+  font-style: italic;
+}
+
+@media (max-width: 420px) {
+  .bet-status { text-align: left; flex-basis: 100%; }
 }
 
 /* ---------- Capitães ---------- */
@@ -2577,15 +3138,16 @@ body.modal-open {
   }
 
   .tabbar {
-    grid-template-columns: repeat(5, max-content);
-    overflow-x: auto;
-    justify-content: start;
-    padding: 7px;
+    /* Duas linhas de três em vez de rolagem horizontal: tudo visível de uma vez. */
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    padding: 6px;
     top: 0;
   }
 
   .tab-btn {
-    min-width: 82px;
+    min-width: 0;
+    padding: 9px 6px;
   }
 
   .round-actions .btn {

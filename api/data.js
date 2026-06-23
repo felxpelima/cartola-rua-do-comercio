@@ -66,11 +66,18 @@ function sanitize(body) {
 export default async function handler(req, res) {
   if (req.method === "GET") {
     try {
-      const state = await getState();
-      // Liga de amigos: a home faz polling a cada 60s e recarrega no foco.
-      // Um cache curto na CDN da Vercel corta a maior parte das idas ao banco
-      // sem o organizador perceber atraso relevante após salvar/sincronizar.
-      res.setHeader("Cache-Control", "public, max-age=0, s-maxage=15, stale-while-revalidate=45");
+      // O painel admin fura o cache com ?t= (cache-busting) pra ver dados recém
+      // salvos/sincronizados; o público sempre usa o caminho cacheado.
+      const query = req.query || {};
+      const fresh = "t" in query || "fresh" in query;
+      const state = await getState({ fresh });
+      // Liga de amigos: a home faz polling e recarrega no foco. Um cache de CDN
+      // mais longo corta a maior parte das idas à função/banco sem o organizador
+      // perceber atraso relevante (o admin sempre vê fresco via ?t=).
+      res.setHeader(
+        "Cache-Control",
+        fresh ? "private, no-store" : "public, max-age=0, s-maxage=60, stale-while-revalidate=300"
+      );
       return res.status(200).json(state);
     } catch (e) {
       return res.status(500).json({ error: "Erro ao ler os dados" });

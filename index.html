@@ -75,6 +75,7 @@
         <button class="tab-btn active" type="button" data-tab="geral">Geral</button>
         <button class="tab-btn" type="button" data-tab="rodada">Rodada</button>
         <button class="tab-btn" type="button" data-tab="mitadas">Mitadas</button>
+        <button class="tab-btn" type="button" data-tab="duelo">Tira-teima</button>
         <button class="tab-btn" type="button" data-tab="resenha">Resenha</button>
         <button class="tab-btn" type="button" data-tab="premios">Premiação</button>
       </nav>
@@ -111,6 +112,49 @@
         <div class="mitada-list" id="mitadasList"></div>
         <div class="section-head tight" id="recordsHead" hidden><span class="sec-kicker">Hall da fama</span><h2 class="sec-title">Recordes</h2></div>
         <div class="record-grid" id="records" hidden></div>
+      </section>
+
+      <section class="tab-panel" data-panel="duelo">
+        <div class="section-head"><span class="sec-kicker">Valendo prêmio</span><h2 class="sec-title">Apostas em jogo</h2></div>
+        <form class="bet-create glass" id="betCreate" hidden>
+          <div class="bet-create-head"><span class="bet-org-tag">Organizador</span><strong>Criar uma aposta</strong></div>
+          <div class="bet-create-grid">
+            <label class="field"><span>Cartoleiro A</span><select id="betSelectA"></select></label>
+            <label class="field"><span>Cartoleiro B</span><select id="betSelectB"></select></label>
+          </div>
+          <label class="field"><span>Valendo o quê?</span>
+            <input id="betStake" type="text" maxlength="120" placeholder="Ex.: 1 caixa de cerveja" />
+          </label>
+          <div class="bet-create-grid">
+            <label class="field"><span>Duração</span>
+              <select id="betScope">
+                <option value="season">Campeonato inteiro</option>
+                <option value="rounds">Algumas rodadas</option>
+              </select>
+            </label>
+            <div class="bet-rounds" id="betRounds" hidden>
+              <label class="field"><span>Da rodada</span><input id="betFrom" type="number" min="1" inputmode="numeric" /></label>
+              <label class="field"><span>Até</span><input id="betTo" type="number" min="1" inputmode="numeric" /></label>
+            </div>
+          </div>
+          <div class="bet-create-actions">
+            <button class="btn btn-gold" id="betCreateBtn" type="submit">Lançar aposta</button>
+            <span class="muted" id="betNote"></span>
+          </div>
+        </form>
+        <div class="bet-list" id="betList"></div>
+
+        <div class="section-head tight"><span class="sec-kicker">Cara a cara</span><h2 class="sec-title">Comparar cartoleiros</h2></div>
+        <div class="duel-pickbar glass">
+          <label class="field duel-pick"><span>Cartoleiro A</span>
+            <select id="duelSelectA"></select>
+          </label>
+          <button class="duel-swap" id="duelSwap" type="button" aria-label="Inverter cartoleiros" title="Inverter">⇄</button>
+          <label class="field duel-pick"><span>Cartoleiro B</span>
+            <select id="duelSelectB"></select>
+          </label>
+        </div>
+        <div class="duel-result" id="duelResult"></div>
       </section>
 
       <section class="tab-panel" data-panel="resenha">

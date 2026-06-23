@@ -142,6 +142,12 @@ let state = {
       ],
     },
   ],
+  // Apostas em jogo de exemplo: uma valendo o campeonato inteiro e outra por
+  // faixa de rodadas (já encerrada) pra exercitar os dois caminhos no preview.
+  bets: [
+    { id: "bet-preview-1", aId: "p1", bId: "p2", stake: "1 caixa de cerveja", scope: "season", fromRound: null, toRound: null, note: "Clássico da Rua valendo a resenha do fim de ano.", createdAt: new Date().toISOString() },
+    { id: "bet-preview-2", aId: "p3", bId: "p4", stake: "Churrasco no domingo", scope: "rounds", fromRound: 1, toRound: 2, note: null, createdAt: new Date().toISOString() },
+  ],
 };
 
 function previewAthleteId(name) {
@@ -628,6 +634,31 @@ async function handleApi(req, res, url) {
 
   if (url.pathname === "/api/login" && req.method === "POST") {
     json(res, 200, { token: "preview-token" });
+    return true;
+  }
+
+  if (url.pathname === "/api/bets" && req.method === "POST") {
+    const body = await readBody(req);
+    const list = Array.isArray(body.bets) ? body.bets : [];
+    // Espelha o normalize de produção o suficiente pra exercitar o fluxo do front.
+    state.bets = list
+      .slice(0, 50)
+      .map((b) => {
+        const scope = b && b.scope === "rounds" ? "rounds" : "season";
+        return {
+          id: String((b && b.id) || `b${Math.random().toString(36).slice(2, 10)}`),
+          aId: String((b && b.aId) || ""),
+          bId: String((b && b.bId) || ""),
+          stake: String((b && b.stake) || ""),
+          scope,
+          fromRound: scope === "rounds" ? Number(b && b.fromRound) || null : null,
+          toRound: scope === "rounds" ? Number(b && b.toRound) || null : null,
+          note: b && b.note ? String(b.note) : null,
+          createdAt: (b && b.createdAt) || new Date().toISOString(),
+        };
+      })
+      .filter((b) => b.aId && b.bId && b.aId !== b.bId && b.stake);
+    json(res, 200, { ok: true, bets: state.bets });
     return true;
   }
 
