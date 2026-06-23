@@ -1767,6 +1767,9 @@ textarea:focus { border-color: rgba(47, 224, 140, 0.55); box-shadow: 0 0 0 3px r
   gap: 12px;
   border: 1px solid rgba(244, 205, 107, 0.3);
 }
+/* O atributo hidden precisa vencer o display: grid acima — senão o form de
+   criar aposta aparece pra todo mundo, não só pro organizador. */
+.bet-create[hidden] { display: none; }
 .bet-create-head {
   display: flex;
   align-items: center;
@@ -1801,6 +1804,7 @@ textarea:focus { border-color: rgba(47, 224, 140, 0.55); box-shadow: 0 0 0 3px r
   font-family: inherit;
 }
 .bet-rounds { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.bet-rounds[hidden] { display: none; }
 .bet-create-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 
 .bet-list { display: grid; gap: 12px; margin-bottom: 20px; }
