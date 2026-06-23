@@ -6,9 +6,14 @@ import {
   calculateCartolaPartialSnapshot,
   cartolaUrl,
   extractCartolaRoundPoints,
+  extractCartolaRoundSnapshot,
+  matchHasStarted,
+  matchIsFinished,
   normalizeCartolaTeam,
   normalizeLineupSnapshot,
   normalizeStoredLineupSnapshot,
+  roundHasStarted,
+  roundIsFinished,
 } from "../lib/cartola.js";
 
 test("cartolaUrl applies Copa prefix only for Copa competition", () => {
@@ -219,6 +224,101 @@ test("calculateCartolaPartialPoints does not use luxury reserve while starter po
   };
 
   assert.equal(calculateCartolaPartialPoints(teamPayload, scoredPayload, matchesPayload), 0);
+});
+
+test("matchHasStarted treats only pre-game matches as not started", () => {
+  // Pré-jogo: nenhum sinal de início.
+  assert.equal(matchHasStarted({ periodo_tr: "PRE_JOGO", status_transmissao_tr: "CRIADA" }), false);
+  assert.equal(matchHasStarted({ periodo_tr: "", status_transmissao_tr: "AGENDADA", status_cronometro_tr: "PROGRAMADO" }), false);
+  assert.equal(matchHasStarted({}), false);
+  // Em andamento ou encerrada.
+  assert.equal(matchHasStarted({ periodo_tr: "PRIMEIRO_TEMPO" }), true);
+  assert.equal(matchHasStarted({ status_transmissao_tr: "EM_ANDAMENTO" }), true);
+  assert.equal(matchHasStarted({ status_cronometro_tr: "ENCERRADO" }), true);
+  assert.equal(matchHasStarted({ placar_oficial_mandante: 0, placar_oficial_visitante: 0 }), true);
+});
+
+test("roundHasStarted blocks scoring until a match of the requested round kicks off", () => {
+  const notStarted = {
+    rodada: 2,
+    partidas: [
+      { clube_casa_id: 1, clube_visitante_id: 2, periodo_tr: "PRE_JOGO", status_transmissao_tr: "CRIADA" },
+      { clube_casa_id: 3, clube_visitante_id: 4, periodo_tr: "", status_transmissao_tr: "AGENDADA" },
+    ],
+  };
+  assert.equal(roundHasStarted(notStarted, 2), false);
+
+  const started = {
+    rodada: 2,
+    partidas: [
+      { clube_casa_id: 1, clube_visitante_id: 2, periodo_tr: "PRE_JOGO" },
+      { clube_casa_id: 3, clube_visitante_id: 4, periodo_tr: "SEGUNDO_TEMPO" },
+    ],
+  };
+  assert.equal(roundHasStarted(started, 2), true);
+});
+
+test("roundHasStarted returns null when it cannot tell (no matches or different round)", () => {
+  assert.equal(roundHasStarted(null, 2), null);
+  assert.equal(roundHasStarted({ rodada: 2, partidas: [] }, 2), null);
+  // Partidas de outra rodada (ex.: admin re-sincronizando rodada passada): não bloqueia.
+  assert.equal(roundHasStarted({ rodada: 5, partidas: [{ periodo_tr: "PRE_JOGO" }] }, 2), null);
+  // Sem roundId informado, ainda dá pra responder com base nas partidas.
+  assert.equal(roundHasStarted({ rodada: 2, partidas: [{ periodo_tr: "PRE_JOGO" }] }), false);
+});
+
+test("matchIsFinished only trusts end-of-game signals, not live scoreboard", () => {
+  assert.equal(matchIsFinished({ periodo_tr: "POS_JOGO" }), true);
+  assert.equal(matchIsFinished({ status_transmissao_tr: "ENCERRADA" }), true);
+  assert.equal(matchIsFinished({ status_cronometro_tr: "ENCERRADO" }), true);
+  // Em andamento (placar ao vivo não conta como encerrada).
+  assert.equal(matchIsFinished({ periodo_tr: "SEGUNDO_TEMPO", placar_oficial_mandante: 1, placar_oficial_visitante: 0 }), false);
+  assert.equal(matchIsFinished({ periodo_tr: "PRE_JOGO" }), false);
+});
+
+test("roundIsFinished is true only when every match of the round has ended", () => {
+  const live = {
+    rodada: 2,
+    partidas: [
+      { periodo_tr: "POS_JOGO" },
+      { periodo_tr: "SEGUNDO_TEMPO" },
+    ],
+  };
+  assert.equal(roundIsFinished(live, 2), false);
+  const done = {
+    rodada: 2,
+    partidas: [{ periodo_tr: "POS_JOGO" }, { status_transmissao_tr: "ENCERRADA" }],
+  };
+  assert.equal(roundIsFinished(done, 2), true);
+  assert.equal(roundIsFinished(null, 2), null);
+  assert.equal(roundIsFinished({ rodada: 5, partidas: [{ periodo_tr: "SEGUNDO_TEMPO" }] }, 2), null);
+});
+
+test("extractCartolaRoundSnapshot ignores stale official points while the round is in progress", () => {
+  // Cenário do bug: rodada 2 acabou de começar. O Cartola devolve em
+  // /time/id/{id}/2 o `pontos` OFICIAL da rodada 1 (45.5), mas a rodada 2 mal
+  // começou — a parcial desta rodada é ~0. Não pode herdar os 45.5.
+  const teamPayload = {
+    pontos: 45.5,
+    atletas: [{ atleta_id: 10, posicao_id: 5, clube_id: 2360, pontos_num: 0 }],
+  };
+  const scoredPayload = { rodada: 2, atletas: { 10: { pontuacao: 1.2, entrou_em_campo: true } } };
+  const matchesPayload = { rodada: 2, partidas: [{ clube_casa_id: 2360, clube_visitante_id: 2358, periodo_tr: "PRIMEIRO_TEMPO" }] };
+
+  const snapshot = extractCartolaRoundSnapshot(teamPayload, scoredPayload, matchesPayload);
+  assert.equal(snapshot.points, 1.2);
+});
+
+test("extractCartolaRoundSnapshot trusts official points once the round has finished", () => {
+  const teamPayload = {
+    pontos: 45.5,
+    atletas: [{ atleta_id: 10, posicao_id: 5, clube_id: 2360, pontos_num: 0 }],
+  };
+  const scoredPayload = { rodada: 2, atletas: { 10: { pontuacao: 44, entrou_em_campo: true } } };
+  const matchesPayload = { rodada: 2, partidas: [{ clube_casa_id: 2360, clube_visitante_id: 2358, periodo_tr: "POS_JOGO" }] };
+
+  const snapshot = extractCartolaRoundSnapshot(teamPayload, scoredPayload, matchesPayload);
+  assert.equal(snapshot.points, 45.5);
 });
 
 test("normalizeLineupSnapshot exposes starters, reserves, captain and partial status", () => {
