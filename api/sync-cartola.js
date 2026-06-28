@@ -132,9 +132,15 @@ export default async function handler(req, res) {
     //      que o status, principalmente na Copa e na janela entre o fim de uma
     //      rodada e a abertura do mercado da próxima, onde a `rodada_atual` já
     //      avançou mas o status não é exatamente 1.
+    // Rodada PASSADA pedida explicitamente (ex.: admin corrigindo a rodada 3
+    // enquanto o mercado da 4 já abriu): é um backfill de pontuação já
+    // consolidada, então as travas de "ainda não começou" não se aplicam — senão
+    // nunca daria pra corrigir um total errado depois que a rodada vira.
+    const currentRound = Number(status.rodada_atual);
+    const isPastRound = Number.isFinite(currentRound) && roundId < currentRound;
     const marketStatus = Number(status.status_mercado);
     const started = roundHasStarted(matches, roundId);
-    if (marketStatus === 1 || started === false) {
+    if (!isPastRound && (marketStatus === 1 || started === false)) {
       // Sem `roundId` no topo de propósito: assim o site continua mostrando a
       // última rodada COM pontos (a anterior) até a nova rodada de fato começar.
       const finished = await finishSyncRun(run.id, {
@@ -179,7 +185,7 @@ export default async function handler(req, res) {
       try {
         const payload = await getCartolaTeamById(participant.cartolaTimeId, roundId, competition, { timeoutMs: 7000 });
         await saveRawPayload(endpoint, `${competition}:team:${participant.cartolaTimeId}:round:${roundId}`, 200, payload);
-        const snapshot = extractCartolaRoundSnapshot(payload, scoredForRound, matches);
+        const snapshot = extractCartolaRoundSnapshot(payload, scoredForRound, matches, roundId);
         const rawPayload = buildRoundScoreRawPayload(payload, scoredForRound, matches);
         const points = snapshot?.points ?? null;
         if (points == null) {

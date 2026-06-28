@@ -321,6 +321,33 @@ test("extractCartolaRoundSnapshot trusts official points once the round has fini
   assert.equal(snapshot.points, 45.5);
 });
 
+test("extractCartolaRoundSnapshot rejects stale official points from a previous round snapshot", () => {
+  // Bug real (BITELO F C, rodada 3): ao pedir /time/id/{id}/3 numa janela após o
+  // fim dos jogos, o Cartola devolveu o snapshot da rodada 2 inteiro — inclusive
+  // `pontos` (159.8) e `rodada_atual` (2). As partidas correntes já eram da
+  // rodada 4 (nada permite afirmar "em andamento" pela rodada 3). Sem checar a
+  // rodada do payload, gravávamos os 159.8 da rodada 2 na rodada 3.
+  const teamPayload = {
+    pontos: 159.7998046875,
+    rodada_atual: 2,
+    atletas: [{ atleta_id: 10, posicao_id: 5, clube_id: 2360, pontos_num: 0 }],
+  };
+  const scoredPayload = { rodada: 3, atletas: { 10: { pontuacao: 12.4, entrou_em_campo: true } } };
+  const matchesPayload = { rodada: 4, partidas: [{ clube_casa_id: 2360, clube_visitante_id: 2358, periodo_tr: "PRE_JOGO" }] };
+
+  // Pedindo a rodada 3: o `pontos` oficial é da rodada 2 → descartado, usa a parcial.
+  const snapshot = extractCartolaRoundSnapshot(teamPayload, scoredPayload, matchesPayload, 3);
+  assert.equal(snapshot.points, 12.4);
+
+  // Sem parcial disponível, não inventa: devolve null para o sync pular o time.
+  assert.equal(extractCartolaRoundSnapshot(teamPayload, null, matchesPayload, 3), null);
+
+  // Quando o payload É da rodada pedida e ela encerrou, confia no oficial.
+  const consolidated = { pontos: 124.580078125, rodada_atual: 3, atletas: teamPayload.atletas };
+  const finished = { rodada: 3, partidas: [{ clube_casa_id: 2360, clube_visitante_id: 2358, periodo_tr: "POS_JOGO" }] };
+  assert.equal(extractCartolaRoundSnapshot(consolidated, null, finished, 3).points, 124.580078125);
+});
+
 test("normalizeLineupSnapshot exposes starters, reserves, captain and partial status", () => {
   const teamPayload = {
     capitao_id: 20,
