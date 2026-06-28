@@ -321,6 +321,16 @@ test("extractCartolaRoundSnapshot trusts official points once the round has fini
   assert.equal(snapshot.points, 45.5);
 });
 
+test("extractCartolaRoundSnapshot rounds the noisy float pontos to 2 decimals", () => {
+  // A API do Cartola serializa o float com ruído (145.62 chega como 145.6201171875).
+  // Guardamos 145.62 para bater com o que o Cartola mostra e não acumular lixo na soma.
+  const teamPayload = { pontos: 145.6201171875, atletas: [{ atleta_id: 10, posicao_id: 5, clube_id: 2360, pontos_num: 0 }] };
+  const matchesPayload = { rodada: 1, partidas: [{ clube_casa_id: 2360, clube_visitante_id: 2358, periodo_tr: "POS_JOGO" }] };
+
+  assert.equal(extractCartolaRoundSnapshot(teamPayload, null, matchesPayload, 1).points, 145.62);
+  assert.equal(extractCartolaRoundPoints({ pontos: 124.580078125 }), 124.58);
+});
+
 test("extractCartolaRoundSnapshot rejects stale official points from a previous round snapshot", () => {
   // Bug real (BITELO F C, rodada 3): ao pedir /time/id/{id}/3 numa janela após o
   // fim dos jogos, o Cartola devolveu o snapshot da rodada 2 inteiro — inclusive
@@ -345,7 +355,7 @@ test("extractCartolaRoundSnapshot rejects stale official points from a previous 
   // Quando o payload É da rodada pedida e ela encerrou, confia no oficial.
   const consolidated = { pontos: 124.580078125, rodada_atual: 3, atletas: teamPayload.atletas };
   const finished = { rodada: 3, partidas: [{ clube_casa_id: 2360, clube_visitante_id: 2358, periodo_tr: "POS_JOGO" }] };
-  assert.equal(extractCartolaRoundSnapshot(consolidated, null, finished, 3).points, 124.580078125);
+  assert.equal(extractCartolaRoundSnapshot(consolidated, null, finished, 3).points, 124.58);
 });
 
 test("normalizeLineupSnapshot exposes starters, reserves, captain and partial status", () => {
