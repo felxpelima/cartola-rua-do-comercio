@@ -61,6 +61,42 @@ async function runPool(items, limit, worker) {
   return results;
 }
 
+// Finaliza a pontuação OFICIAL da rodada recém-fechada. O cron só sincroniza a
+// `rodada_atual`; quando ela avança, a rodada anterior nunca mais era revisitada
+// e podia ficar CONGELADA num total parcial (ou gravado por um motor antigo) —
+// foi o bug que deixou rodadas já fechadas com pontos diferentes do Cartola.
+// A cada sync re-gravamos o oficial da rodada anterior (best-effort):
+//   - usa só o `pontos` oficial (rodada passada não usa parcial → scored = null);
+//   - se o Cartola devolver um snapshot defasado (payload de outra rodada),
+//     `extractCartolaRoundSnapshot` retorna null e o time é pulado (não sobrescreve);
+//   - `upsertRoundScore` preserva overrides manuais, então nada é clobberado.
+async function backfillPreviousRound(competition, prevRoundId, participants, matches) {
+  if (!Number.isFinite(prevRoundId) || prevRoundId < 1 || !participants.length) {
+    return { attempted: false, prevRoundId: prevRoundId ?? null, updated: 0, skipped: 0 };
+  }
+  let updated = 0;
+  let skipped = 0;
+  await runPool(participants, 4, async (participant) => {
+    try {
+      const payload = await getCartolaTeamById(participant.cartolaTimeId, prevRoundId, competition, { timeoutMs: 7000 });
+      const snapshot = extractCartolaRoundSnapshot(payload, null, matches, prevRoundId);
+      const points = snapshot?.points ?? null;
+      if (points == null) {
+        skipped += 1;
+        return;
+      }
+      const rawPayload = buildRoundScoreRawPayload(payload, null, matches);
+      await upsertRoundScore(participant, prevRoundId, rawPayload, points, snapshot);
+      updated += 1;
+    } catch (e) {
+      // Best-effort: uma falha ao finalizar a rodada anterior nunca pode derrubar
+      // o sync da rodada atual.
+      skipped += 1;
+    }
+  });
+  return { attempted: true, prevRoundId, updated, skipped };
+}
+
 function roundFromRequest(req, status) {
   const requested = Number(one(req.query.roundId) || one(req.query.round) || (req.body && req.body.roundId));
   if (Number.isFinite(requested) && requested > 0) return Math.trunc(requested);
@@ -140,13 +176,28 @@ export default async function handler(req, res) {
     const isPastRound = Number.isFinite(currentRound) && roundId < currentRound;
     const marketStatus = Number(status.status_mercado);
     const started = roundHasStarted(matches, roundId);
+
+    // Participantes uma vez só (reaproveitado no backfill da rodada anterior e no
+    // sync da rodada atual).
+    const participants = await getParticipantsForSync();
+
+    // Finaliza a rodada ANTERIOR com o oficial do Cartola ANTES de qualquer
+    // early-return (inclusive o `not_started` logo abaixo, que é exatamente a
+    // janela em que a rodada anterior fecha e a atual ainda não começou). Só
+    // quando estamos sincronizando a rodada atual (cron) — num backfill manual de
+    // rodada passada (isPastRound) não mexemos na rodada anterior a ela.
+    let previousBackfill = null;
+    if (!isPastRound && Number.isFinite(currentRound) && currentRound >= 2) {
+      previousBackfill = await backfillPreviousRound(competition, currentRound - 1, participants, matches);
+    }
+
     if (!isPastRound && (marketStatus === 1 || started === false)) {
       // Sem `roundId` no topo de propósito: assim o site continua mostrando a
       // última rodada COM pontos (a anterior) até a nova rodada de fato começar.
       const finished = await finishSyncRun(run.id, {
         status: "not_started",
         message: `A rodada ${roundId} ainda não começou. Pontuação não gravada (evita duplicar a rodada anterior).`,
-        details: { roundId, marketStatus, roundStarted: started },
+        details: { roundId, marketStatus, roundStarted: started, previousBackfill },
       });
       return res.status(200).json({ ok: true, sync: finished });
     }
@@ -169,7 +220,6 @@ export default async function handler(req, res) {
     const scoredForRound =
       !Number.isFinite(scoredRound) || scoredRound === roundId ? scoredAthletes : null;
 
-    const participants = await getParticipantsForSync();
     if (!participants.length) {
       const finished = await finishSyncRun(run.id, {
         status: "empty",
@@ -252,6 +302,7 @@ export default async function handler(req, res) {
         roundId,
         scoringEngine: SCORING_ENGINE_VERSION,
         participants: participants.length,
+        previousBackfill,
         updated: results.filter((r) => r.ok).map((r) => ({
           participantId: r.participantId,
           cartolaTimeId: r.cartolaTimeId,
