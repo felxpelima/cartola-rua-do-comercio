@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Anton&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/styles.css?v=fases-136" />
+  <link rel="stylesheet" href="/styles.css?v=fases-137" />
 </head>
 <body>
   <div class="bg-grain"></div>
@@ -102,6 +102,18 @@
     </div>
 
     <div class="admin-block glass">
+      <div class="block-label">Fim de temporada</div>
+      <label class="switch-field" for="temporadaEncerrada">
+        <input id="temporadaEncerrada" type="checkbox" />
+        <span class="switch-track"><span class="switch-thumb"></span></span>
+        <span class="switch-text">
+          <strong>Encerrar temporada e revelar o campeão</strong>
+          <small>Liga a cerimônia do grande campeão na página pública. Ligue só quando a última rodada estiver 100% fechada.</small>
+        </span>
+      </label>
+    </div>
+
+    <div class="admin-block glass">
       <div style="display:flex;align-items:center;margin-bottom:14px;gap:10px">
         <div class="block-label" style="flex:1;margin:0">Participantes</div>
         <button class="btn btn-green" id="addBtn" style="padding:9px 15px;font-size:13px">+ Adicionar</button>
@@ -141,6 +153,6 @@
   <div class="toast" id="toast"></div>
   <button id="backToTop" class="back-to-top" type="button" aria-label="Voltar ao topo" title="Voltar ao topo" disabled>&uarr;</button>
   <script src="/back-to-top.js?v=back-top"></script>
-  <script src="/admin.js?v=fases-136"></script>
+  <script src="/admin.js?v=fases-137"></script>
 </body>
 </html>

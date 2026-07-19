@@ -153,6 +153,7 @@ function fillForm() {
   $("competition").value = config.competition ?? "copa";
   $("temporada").value = config.temporada ?? 2026;
   $("mural").value = config.mural ?? "";
+  if ($("temporadaEncerrada")) $("temporadaEncerrada").checked = Boolean(config.temporadaEncerrada);
   $("adminSubtitle").textContent = config.titulo || "Liga Rua do Comércio";
 
   renderAutomationSummary();
@@ -572,6 +573,7 @@ async function save() {
       competition: competitionValue(),
       temporada: Number($("temporada").value) || 2026,
       mural: $("mural").value.trim(),
+      temporadaEncerrada: $("temporadaEncerrada") ? $("temporadaEncerrada").checked : false,
     },
   };
 

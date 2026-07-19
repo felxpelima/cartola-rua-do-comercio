@@ -1514,6 +1514,146 @@ function renderMaintenance(state) {
   banner.hidden = !maintenance;
 }
 
+/* ------------------- Cerimônia do grande campeão (fim de temporada) --------
+ * Liga pelo admin (config.temporadaEncerrada) ou por ?finale=1 (só para testar).
+ * Toma a tela inteira: pódio dramático com o campeão coroado, raios, coroa
+ * descendo, pontos subindo e fogos. Reaproveita window.fxConfetti do anim.js.
+ * ------------------------------------------------------------------------- */
+const FIN_CROWN_SVG =
+  '<svg class="fin-crown-svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M2 8l4.5 3L12 4l5.5 7L22 8l-2.2 11.2a1 1 0 0 1-1 .8H5.2a1 1 0 0 1-1-.8L2 8z"/></svg>';
+
+let finaleState = "off"; // "off" | "on"
+
+function finaleForced() {
+  try {
+    return new URLSearchParams(window.location.search).has("finale");
+  } catch (e) {
+    return false;
+  }
+}
+
+function championPodium(participants) {
+  return [...participants]
+    .sort((a, b) => (Number(b.pontos) || 0) - (Number(a.pontos) || 0))
+    .slice(0, 3);
+}
+
+function finaleColMarkup(participant, place) {
+  if (!participant) return "";
+  const champ = place === 1;
+  const avatarCls = champ ? "fin-ava fin-ava-big" : "fin-ava";
+  return `
+    <div class="fin-col fin-p${place}">
+      ${champ ? '<div class="fin-rays" aria-hidden="true"></div>' : ""}
+      ${champ ? `<div class="fin-crown">${FIN_CROWN_SVG}</div>` : ""}
+      <a class="fin-card${champ ? " fin-card-champ" : ""}" href="${profileHref(participant)}">
+        <span class="fin-ava-wrap">
+          ${champ ? '<span class="fin-halo" aria-hidden="true"></span>' : ""}
+          ${avatarMarkup(participant, avatarCls)}
+        </span>
+        ${champ ? '<span class="fin-champ-label">Grande Campeão</span>' : ""}
+        <span class="fin-name">${esc(teamName(participant))}</span>
+        <span class="fin-owner">${esc(ownerName(participant))}</span>
+      </a>
+      <div class="fin-pts${champ ? " fin-pts-big" : ""}">
+        ${champ ? `<b data-pts="${Number(participant.pontos) || 0}">${fmtPts(0)}</b>` : `<b>${fmtPts(participant.pontos)}</b>`}<span>pts</span>
+      </div>
+      <div class="fin-base fin-base-${place}"><span>${place}</span></div>
+    </div>`;
+}
+
+function buildFinaleHtml(top, config) {
+  const year = config.temporada || 2026;
+  // Ordem visual do pódio: 2 — 1 — 3 (o campeão no centro, mais alto).
+  const order = [top[1], top[0], top[2]];
+  const places = [2, 1, 3];
+  const cols = order.map((participant, i) => finaleColMarkup(participant, places[i])).join("");
+  return `
+    <div class="fin-veil" aria-hidden="true"></div>
+    <div class="fin-dust" aria-hidden="true"></div>
+    <div class="fin-stage" role="dialog" aria-modal="true" aria-label="Grande campeão da temporada">
+      <div class="fin-kicker">Temporada ${esc(year)} <span class="dot">·</span> encerrada</div>
+      <h2 class="fin-title">O grande campeão da liga</h2>
+      <div class="fin-podium">${cols}</div>
+      <button class="fin-close" type="button">Ver a liga <span aria-hidden="true">↓</span></button>
+    </div>`;
+}
+
+function fireFinaleFireworks() {
+  if (REDUCED || typeof window.fxConfetti !== "function") return;
+  const W = window.innerWidth;
+  const H = window.innerHeight;
+  const shots = [
+    [0, W * 0.5, H * 0.26, 150],
+    [420, W * 0.22, H * 0.34, 90],
+    [760, W * 0.78, H * 0.32, 90],
+    [1250, W * 0.5, H * 0.2, 160],
+    [1900, W * 0.33, H * 0.3, 100],
+    [2150, W * 0.67, H * 0.3, 100],
+  ];
+  shots.forEach(([delay, x, y, count]) => setTimeout(() => window.fxConfetti({ x, y, count }), 2200 + delay));
+}
+
+function closeFinale(el) {
+  setSessionFlag("finale_dismissed");
+  el.classList.add("is-leaving");
+  document.body.classList.remove("finale-locked");
+  setTimeout(() => {
+    el.hidden = true;
+    el.setAttribute("aria-hidden", "true");
+    el.innerHTML = "";
+    el.classList.remove("is-on", "is-static", "is-leaving");
+    finaleState = "off";
+  }, 640);
+}
+
+function runFinale(state) {
+  const el = $("finale");
+  if (!el) return;
+  const config = state.config || {};
+  const on = Boolean(config.temporadaEncerrada) || finaleForced();
+  const participants = Array.isArray(state.participants) ? state.participants : [];
+  const top = championPodium(participants);
+
+  // Desligado (ou temporada reaberta): garante que a cerimônia suma.
+  if (!on || top.length === 0) {
+    if (finaleState === "on") {
+      el.hidden = true;
+      el.setAttribute("aria-hidden", "true");
+      el.innerHTML = "";
+      el.classList.remove("is-on", "is-static", "is-leaving");
+      document.body.classList.remove("finale-locked");
+      finaleState = "off";
+    }
+    return;
+  }
+
+  if (finaleState === "on") return; // já no ar; não reinicia no polling de 2min
+  if (sessionFlag("finale_dismissed")) return; // usuário fechou nesta sessão
+
+  finaleState = "on";
+  el.innerHTML = buildFinaleHtml(top, config);
+  el.hidden = false;
+  el.setAttribute("aria-hidden", "false");
+  document.body.classList.add("finale-locked");
+
+  const closeBtn = el.querySelector(".fin-close");
+  if (closeBtn) closeBtn.addEventListener("click", () => closeFinale(el));
+
+  const play = () => {
+    el.classList.add(REDUCED ? "is-static" : "is-on");
+    const ptsEl = el.querySelector(".fin-pts-big b[data-pts]");
+    if (ptsEl) {
+      const val = Number(ptsEl.dataset.pts) || 0;
+      if (REDUCED) ptsEl.textContent = fmtPts(val);
+      else setTimeout(() => countUp(ptsEl, val, fmtPts, 1500), 2600);
+    }
+    fireFinaleFireworks();
+  };
+  // Dois rAF: deixa o browser aplicar o layout inicial antes de disparar as transições.
+  requestAnimationFrame(() => requestAnimationFrame(play));
+}
+
 function render(state) {
   currentState = state;
   const config = state.config || {};
@@ -1541,6 +1681,7 @@ function render(state) {
   renderBets(state);
   renderDuelo(state);
   renderBadges(participants);
+  runFinale(state);
 
   firstRender = false;
 }

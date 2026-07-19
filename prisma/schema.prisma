@@ -29,6 +29,7 @@ model AppConfig {
   competition    String   @default("copa")
   temporada      Int      @default(2026)
   mural          String   @default("")
+  temporadaEncerrada Boolean @default(false)
   bets           Json     @default("[]")
   updatedAt      DateTime @updatedAt
 }

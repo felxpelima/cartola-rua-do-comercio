@@ -204,6 +204,29 @@ test("landing.js renders records, recap and live state without error", async () 
   assert.equal(els.get("maintenanceBanner").hidden, true);
 });
 
+test("landing.js plays the champion finale when the season is closed", async () => {
+  const state = richState();
+  state.config.temporadaEncerrada = true;
+  const els = await runScript("landing.js", state, "");
+  const fin = html(els, "finale");
+  assert.equal(els.get("finale").hidden, false);
+  // Cerimônia montada: véu, coroa e rótulo do campeão.
+  assert.match(fin, /fin-veil/);
+  assert.match(fin, /fin-crown-svg/);
+  assert.match(fin, /Grande Campeão/);
+  // Campeão = líder geral (maior soma). Em richState, UGO soma 242.13 (o maior).
+  assert.match(fin, /class="fin-card fin-card-champ"/);
+  assert.match(fin, /class="fin-name">UGO Comércio FC</);
+  assert.match(fin, /data-pts="242\.13"/);
+  // Pódio na ordem visual 2 - 1 - 3 (campeão no centro).
+  assert.equal([...fin.matchAll(/fin-base-(\d)/g)].map((m) => m[1]).join(""), "213");
+});
+
+test("landing.js keeps the finale hidden while the season is running", async () => {
+  const els = await runScript("landing.js", richState(), "");
+  assert.equal(html(els, "finale"), "");
+});
+
 test("landing.js shows the maintenance banner when the last sync is unavailable", async () => {
   const state = richState();
   state.lastSync = { status: "unavailable", finishedAt: new Date().toISOString() };
