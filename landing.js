@@ -1523,6 +1523,10 @@ const FIN_CROWN_SVG =
   '<svg class="fin-crown-svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M2 8l4.5 3L12 4l5.5 7L22 8l-2.2 11.2a1 1 0 0 1-1 .8H5.2a1 1 0 0 1-1-.8L2 8z"/></svg>';
 
 let finaleState = "off"; // "off" | "on"
+// Fechou nesta carga de página? Reseta a cada load (não usa sessionStorage de
+// propósito): a cerimônia roda toda vez que o site abre/recarrega, mas depois de
+// fechada não volta a saltar no polling de 2min da mesma sessão.
+let finaleDismissed = false;
 
 function finaleForced() {
   try {
@@ -1599,7 +1603,7 @@ function fireFinaleFireworks() {
 }
 
 function closeFinale(el) {
-  setSessionFlag("finale_dismissed");
+  finaleDismissed = true;
   el.classList.add("is-leaving");
   document.body.classList.remove("finale-locked");
   setTimeout(() => {
@@ -1633,7 +1637,7 @@ function runFinale(state) {
   }
 
   if (finaleState === "on") return; // já no ar; não reinicia no polling de 2min
-  if (sessionFlag("finale_dismissed")) return; // usuário fechou nesta sessão
+  if (finaleDismissed) return; // fechada nesta carga; volta ao recarregar a página
 
   finaleState = "on";
   el.innerHTML = buildFinaleHtml(top, config);
