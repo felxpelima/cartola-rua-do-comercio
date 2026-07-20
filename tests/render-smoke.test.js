@@ -210,7 +210,8 @@ test("landing.js plays the champion finale when the season is closed", async () 
   const els = await runScript("landing.js", state, "");
   const fin = html(els, "finale");
   assert.equal(els.get("finale").hidden, false);
-  // Cerimônia montada: véu, coroa e rótulo do campeão.
+  // Cerimônia montada: imagem-splash do campeão antes do pódio, véu, coroa e rótulo.
+  assert.match(fin, /class="fin-splash-img" src="\/campeao\.jpeg"/);
   assert.match(fin, /fin-veil/);
   assert.match(fin, /fin-crown-svg/);
   assert.match(fin, /Grande Campeão/);

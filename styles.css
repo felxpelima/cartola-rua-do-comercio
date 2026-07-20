@@ -3946,6 +3946,29 @@ body.finale-locked { overflow: hidden; }
 .finale[hidden] { display: none; }
 .finale.is-leaving { animation: finLeave 0.6s ease forwards; pointer-events: none; }
 
+/* Intro: imagem do campeao em tela cheia antes do podio. */
+.fin-splash {
+  position: absolute; inset: 0; z-index: 4;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 16px; padding: 20px; cursor: pointer;
+  background: radial-gradient(120% 90% at 50% 40%, #061109, #020705 78%);
+  opacity: 0; pointer-events: none; transition: opacity 0.55s ease;
+}
+.finale.is-splashing .fin-splash { opacity: 1; pointer-events: auto; }
+.fin-splash-img {
+  max-width: min(92vw, 460px); max-height: 82vh; width: auto; height: auto;
+  border-radius: 18px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(244, 205, 107, 0.28), 0 0 60px rgba(244, 205, 107, 0.12);
+}
+.finale.is-splashing .fin-splash-img { animation: finSplashIn 1s cubic-bezier(0.2, 0.85, 0.3, 1) both; }
+.fin-splash-skip {
+  font-family: var(--body); font-size: 11px; letter-spacing: 2.5px; text-transform: uppercase;
+  color: var(--ink-dim); background: none; border: 0; padding: 6px 12px; cursor: pointer;
+}
+.finale.is-splashing .fin-splash-skip { animation: finSplashHint 1.7s ease 0.9s infinite; }
+@keyframes finSplashIn { from { opacity: 0; transform: scale(0.92); } to { opacity: 1; transform: scale(1); } }
+@keyframes finSplashHint { 0%, 100% { opacity: 0.35; } 50% { opacity: 0.9; } }
+
 .fin-veil {
   position: absolute; inset: 0; opacity: 0;
   background:

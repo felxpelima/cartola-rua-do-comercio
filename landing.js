@@ -1569,6 +1569,10 @@ function buildFinaleHtml(top, config) {
   const places = [2, 1, 3];
   const cols = order.map((participant, i) => finaleColMarkup(participant, places[i])).join("");
   return `
+    <div class="fin-splash" aria-hidden="true">
+      <img class="fin-splash-img" src="/campeao.jpeg" alt="Grande campeão da Copa do Mundo ${esc(year)}" />
+      <button class="fin-splash-skip" type="button">toque para pular</button>
+    </div>
     <div class="fin-veil" aria-hidden="true"></div>
     <div class="fin-dust" aria-hidden="true"></div>
     <div class="fin-stage" role="dialog" aria-modal="true" aria-label="Grande campeão da temporada">
@@ -1640,7 +1644,9 @@ function runFinale(state) {
   const closeBtn = el.querySelector(".fin-close");
   if (closeBtn) closeBtn.addEventListener("click", () => closeFinale(el));
 
-  const play = () => {
+  // Revela o pódio (a cerimônia em si). Vem depois da imagem-splash do campeão.
+  const startPodium = () => {
+    el.classList.remove("is-splashing");
     el.classList.add(REDUCED ? "is-static" : "is-on");
     const ptsEl = el.querySelector(".fin-pts-big b[data-pts]");
     if (ptsEl) {
@@ -1650,8 +1656,27 @@ function runFinale(state) {
     }
     fireFinaleFireworks();
   };
+
+  // Sem animação (prefers-reduced-motion): pula a intro e mostra o pódio estático.
+  if (REDUCED) {
+    requestAnimationFrame(() => requestAnimationFrame(startPodium));
+    return;
+  }
+
+  // Intro: imagem do campeão em tela cheia por ~3,5s (ou toque para pular), e
+  // então dissolve no pódio.
+  const splash = el.querySelector(".fin-splash");
+  let advanced = false;
+  const goPodium = () => {
+    if (advanced) return;
+    advanced = true;
+    clearTimeout(splashTimer);
+    startPodium();
+  };
+  const splashTimer = setTimeout(goPodium, 3500);
+  if (splash) splash.addEventListener("click", goPodium);
   // Dois rAF: deixa o browser aplicar o layout inicial antes de disparar as transições.
-  requestAnimationFrame(() => requestAnimationFrame(play));
+  requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add("is-splashing")));
 }
 
 function render(state) {
